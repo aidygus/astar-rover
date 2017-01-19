@@ -1,0 +1,220 @@
+// rover.ks
+// Written by KK4TEE
+// License: GPLv3
+//
+// ThIS program provides stability assIStance
+// for manually driven rovers
+PARAMETER debug IS true.
+SET speedlimit TO 4. //All speeds are in m/s
+lock turnlimit to min(1, 1.5 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
+                   //turning radius based on __current speed
+
+
+SET looptime TO 0.01.
+SET loopEndTime TO TIME:SECONDS.
+SET eWheelThrottle TO 0. // Error between target speed and actual speed
+SET iWheelThrottle TO 0. // AccumulATed speed error
+SET wtVAL TO 0. //Wheel Throttle Value
+SET kTurn TO 0. //Wheel turn value.
+SET targetspeed TO 0. //CruISe control starting speed
+SET targetHeading TO 90. //Used for autopilot steering
+SET NORTHPOLE TO lATlng( 90, 0). //Reference heading
+SET AG9 TO FALSE.
+SET lockcounter TO 0.
+
+clearscreen.
+CLEARVECDRAWS().
+sas off.
+rcs off.
+lights on.
+LOCK throttle TO 0.
+SET runmode TO 0.
+LOCK __current TO SHIP:GEOPOSITION.
+SET __goal TO SHIP:GEOPOSITION.
+SET __grid TO SHIP:GEOPOSITION.
+nav_marker().
+SET route TO LIST().
+SET rwaypoint TO -1.
+on ag10 { //When the 0 key IS pressed:
+    // End the program
+    SET runmode TO -1.
+    }
+
+until runmode = -1 {
+
+    //UpdATe the compass:
+    // I want the heading TO mATch the navball
+    // and be out of 360' instead of +/-180'
+    // I do thIS by judging the heading relATive
+    // TO a lATlng SET TO the north pole
+    IF northPole:bearing <= 0 {
+        SET cHeading TO ABS(northPole:bearing).
+        }
+    ELSE {
+        SET cHeading TO (180 - northPole:bearing) + 180.
+        }
+
+    IF runmode = 0 { //Govern the rover
+
+        //Wheel Throttle:
+        SET targetspeed TO targetspeed + 0.05 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
+        SET targetspeed TO max(-1, min( speedlimit, targetspeed)).
+
+        IF targetspeed > 0 { //IF we should be going forward
+            brakes off.
+            SET eWheelThrottle TO targetspeed - GROUNDSPEED.
+            SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
+                                                (looptime * eWheelThrottle))).
+            SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
+            IF GROUNDSPEED < 5 {
+                //Safety adjustment TO help reduce roll-back AT low speeds
+                SET wtVAL TO min( 1, max( -0.2, wtVAL)).
+                }
+            }
+        ELSE IF targetspeed < 0 { //ELSE IF we're going backwards
+            SET wtVAL TO SHIP:CONTROL:PILOTWHEELTHROTTLE.
+            SET targetspeed TO 0. //Manual reverse throttle
+            SET iWheelThrottle TO 0.
+            }
+        ELSE { // IF value IS out of range or zero, stop.
+            SET wtVAL TO 0.
+            brakes on.
+            }
+
+        IF brakes = 1 { //DISable cruISe control IF the brakes are turned on.
+            SET targetspeed TO 0.
+            }
+
+        //Steering:
+        IF AG1 { //ActivATe autopilot IF Action group 1 IS on
+            SET errorSteering TO (targetheading - cHeading).
+            IF errorSteering > 180 { //Make sure the headings make sense
+                SET errorSteering TO errorSteering - 360.
+                }
+            ELSE IF errorSteering < -180 {
+                SET errorSteering TO errorSteering + 360.
+                }
+            SET desiredSteering TO -errorSteering / 20.
+            SET kturn TO min( 1, max( -1, desiredSteering)) * turnlimit.
+            }
+        ELSE {
+            // SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
+            }
+        }
+
+    //Handle User Input using action groups
+        IF AG2 { // SET heading TO the __current heading
+            SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
+            nav_marker().
+            SET AG2 TO FALSE. //ReSET the AG after we read it
+            }
+        ELSE IF AG3 { // Decrease the heading
+            SET __goal TO LATLNG(__goal:LAT-0.1,__goal:LNG).
+            nav_marker().
+            SET AG3 TO FALSE.
+            }
+        ELSE IF AG4 { // Increase the heading
+            SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.1).
+            nav_marker().
+            SET AG4 TO FALSE.
+             }
+        ELSE IF AG5 {
+            SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.1).
+            nav_marker().
+             SET AG5 TO FALSE.
+             //Prevent increase IF we are decreasing
+             }
+        ELSE IF AG6 {
+             SET __goal TO SHIP:GEOPOSITION.
+             nav_marker().
+             SET targetspeed TO 0.
+             SET route TO LIST().
+             SET rwaypoint TO -1.
+             SET AG6 TO FALSE.
+             //Prevent decrease IF we are increasing
+             }
+            else if AG7 {
+                 set speedlimit to speedlimit - 0.5.
+                 set AG7 to FALSE.
+                 }
+             else if AG8 {
+                 set speedlimit to speedlimit + 0.5.
+                 set AG8 to FALSE.
+             }
+      ELSE IF AG9 {
+        CLEARSCREEN.
+        RUNPATH("/asrover/astar","LATLNG",__goal,debug).
+        CLEARSCREEN.
+        SET rwaypoint TO 0.
+        SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
+        LOCK targetHeading TO __grid:HEADING.
+        LOCK WHEELSTEERING TO route[rwaypoint][0].
+        SET AG9 TO FALSE.
+        BRAKES OFF.
+        SET AG1 TO TRUE.
+        CLEARVECDRAWS().
+      }
+
+      IF targetHeading > 360 {
+        SET targetHeading TO targetHeading - 360.
+      }
+      ELSE IF targetHeading < 0 {
+        SET targetHeading TO targetHeading + 360.
+      }
+    if route:LENGTH <> 0 AND rwaypoint <> -1 {
+      PRINT round(__current:LNG,3) + "  :  " +  round(__current:LAT,3) AT (2,30).
+      PRINT round(route[rwaypoint][0]:LNG,3) + "  :  " + round(route[rwaypoint][0]:LAT,3) AT (2,31).
+
+      if round(__current:LAT,2) = round(route[rwaypoint][0]:LAT,2) AND round(__current:LNG,2) = round(route[rwaypoint][0]:LNG,2) AND lockcounter = 0 {
+        SET lockcounter TO 1.
+        SET rwaypoint TO rwaypoint + 1.
+        if rwaypoint < route:LENGTH {
+          SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
+          LOCK WHEELSTEERING TO route[rwaypoint][0].
+          LOCK targetHeading TO __grid:HEADING.
+        } else {
+          set route TO LIST().
+          set rwaypoint TO -1.
+          PRINT "         Rover has arrived at location                 " AT (0,1).
+          BRAKES ON.
+          UNLOCK targetheading.
+        }
+      } else if lockcounter = 1 AND round(__current:LAT,3) <> round(route[rwaypoint][0]:LAT,3)  AND round(__current:LNG,3) <> round(route[rwaypoint][0]:LNG,3){
+        set lockcounter TO 0.
+      }
+    }
+    SET SHIP:CONTROL:WHEELTHROTTLE TO WTVAL.
+    SET SHIP:CONTROL:WHEELSTEER TO kTurn.
+
+
+    PRINT "Target Speed:   " + ROUND( targetspeed, 1) + "        " AT (2, 3).
+    PRINT "Speed Limit:    " + ROUND( speedlimit, 1) + "        " AT (2, 4).
+    PRINT "Surface Speed:  " + ROUND( GROUNDSPEED, 1) + "        " AT (2, 5).
+
+    PRINT "Pilot Throttle: " + ROUND( SHIP:CONTROL:PILOTWHEELTHROTTLE, 2) + "        " AT (2, 7).
+    PRINT "Kommanded tVAL: " + ROUND( wtVAL, 2) + "        " AT (2, 8).
+    PRINT "Pilot Turn:     " + ROUND( SHIP:CONTROL:PILOTWHEELSTEER, 2) + "        " AT (2, 9).
+    PRINT "Kommanded Turn: " + ROUND( kTurn, 2) + "        " AT (2, 10).
+
+    PRINT "Target Heading: " + ROUND( targetheading, 2) + "        " AT (2, 12).
+    PRINT "CurrentHeading: " + ROUND( cheading, 2) + "        " AT (2, 13).
+    PRINT "CruISe Control: " + AG1 + "   " AT (2, 14).
+
+    PRINT "Target Dist   : " + ROUND(__grid:DISTANCE, 2) + "        " AT (2, 16).
+    PRINT "Waypoints     : " + route:LENGTH + "        " AT (2, 17).
+    PRINT "Current WP    : " + rwaypoint + "        " AT (2, 18).
+
+    PRINT "E: " + ROUND(eWheelThrottle,2)+ "   "  AT ( 2, 20).
+    PRINT "I: " + ROUND(iWheelThrottle,2) + "   " AT (10,20).
+
+    SET looptime TO TIME:SECONDS - loopEndTime.
+    SET loopEndTime TO TIME:SECONDS.
+
+    }
+
+    FUNCTION nav_marker {
+      SET vg TO VECDRAWARGS(
+                  __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
+                  __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
+                  Green, "", 1, true,50).
+    }

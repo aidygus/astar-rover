@@ -1,9 +1,9 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
 CLEARSCREEN.
-SET TERMINAL:WIDTH TO 60.
-SET TERMINAL:HEIGHT TO 70.
-SET len to 50.                    // Size of the graph
+SET len to 50.
+SET TERMINAL:WIDTH TO len+10.
+SET TERMINAL:HEIGHT TO len+20.               // Size of the graph
 SET sindex TO 4.                  // Starting Y position in the graph
 SET gindex TO CEILING((len-1)/2). //  Grid reference for the center of the graph which is the goal
 

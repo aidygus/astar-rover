@@ -1,11 +1,11 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
 CLEARSCREEN.
-SET TERMINAL:WIDTH TO 60.
-SET TERMINAL:HEIGHT TO 70.
-SET len to 50.                    // Size of the graph
-SET sindex TO 4.                  // Starting Y position in the graph
+SET len to 100.                    // Size of the graph
+SET sindex TO 25.                  // Starting Y position in the graph
 SET gindex TO CEILING((len-1)/2). //  Grid reference for the center of the graph which is the goal
+SET TERMINAL:WIDTH TO len + 10.
+SET TERMINAL:HEIGHT TO len + 10.
 
 
 SET n to LIST().  // Template list for rows
@@ -64,7 +64,14 @@ PRINT "G" AT (gindex,gindex).
   // os:ADD(LIST(sindex+","+gindex,sindex,gindex,esth)).
   // SET cs TO LIST().
   SET route TO get_neighbours(LIST(sindex,gindex)).
-  SET route TO navigation_points(route).
+  if route:LENGTH <> 0 {
+    CLEARVECDRAWS().
+    SET route TO navigation_points(route).
+  } else {
+    PRINT "Route can not be found".
+  }
+  SET TERMINAL:WIDTH TO 30.
+  SET TERMINAL:HEIGHT TO 40.
   // return navigation_path.
 // }
 //
@@ -92,7 +99,7 @@ FUNCTION direct_route {
 
     SET l[sindex+y][gindex] TO LIST(gscore, fscore, grid, grid:TERRAINHEIGHT, 0 ,camefrom).
 
-    if heightdiff > -100 AND heightdiff < 100 AND grid:TERRAINHEIGHT >= 0 {
+    if heightdiff > -50 AND heightdiff < 100 AND grid:TERRAINHEIGHT >= 0 {
       if y+sindex = gindex {
         BREAK.
       }
@@ -188,18 +195,20 @@ FUNCTION get_neighbours {
 
             LOCAL grid IS LATLNG(_grid:LAT+offsety,_grid:LNG+offsetx).
             PRINT grid:bearing AT (5,68).
-            LOCAL heightdiff IS node[3]-grid:TERRAINHEIGHT.
+            LOCAL heightdiff IS grid:TERRAINHEIGHT-node[3].
 
             //  We want to avoid trying to drive up or down cliffs and especially taking a dip if we can help it
             LOCAL setlist TO 0.
-            if heightdiff > -25 AND heightdiff < 25 AND grid:TERRAINHEIGHT >=0 {
+            LOCAL distance IS (grid:POSITION-node[2]:POSITION):MAG.
+            LOCAL angle IS ARCSIN(heightdiff/distance).
+            if angle > -8 AND angle < 15 AND grid:TERRAINHEIGHT >=0 {
                 PRINT "." AT (gridx,gridy).
-                place_marker(grid,yellow,5,100,gsc+" "+_fscore,0.05).
+                place_marker(grid,yellow,5,100,round(angle),0.05).
                 os:ADD(LIST(chk,gridy, gridx,_fscore)).
                 SET setlist TO 1.
             } else if grid:TERRAINHEIGHT < 0 {
               PRINT "!" AT (gridx,gridy).
-              place_marker(grid,red,5,100,gsc+" "+_fscore,0.05).
+              place_marker(grid,red,5,100,round(angle),0.05).
               cs:ADD(LIST(chk,gridy, gridx,_fscore)).
               SET setlist TO 2.
             } else {
@@ -220,7 +229,7 @@ FUNCTION get_neighbours {
       }
     }
     if os:LENGTH = 0 {
-      return false.
+      return LIST().
     }
   }
 }
@@ -285,7 +294,7 @@ function construct_route {
   UNTIL current:LENGTH = 0 {
     if current:LENGTH <> 0 {
       PRINT "*" AT (current[1],current[0]).
-      // PRINT current.
+      place_marker(l[current[0]][current[1]][2],yellow,1,100,"",30).
       SET current TO l[current[0]][current[1]][5].
       path:ADD(current).
     }

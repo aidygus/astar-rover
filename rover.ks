@@ -1,9 +1,13 @@
 // rover.ks
-// Written by KK4TEE
+// Originally direction and speed routines written by KK4TEE
+// Updated with waypoint management by aidygus
 // License: GPLv3
 //
-// ThIS program provides stability assIStance
-// for manually driven rovers
+// ThIS program provides waypoint functionality
+// using an astar based algorythm to calculate
+// safest possible route from start to goal
+// and monitoring for fully automated rovers
+
 PARAMETER debug IS true.
 SET speedlimit TO 4. //All speeds are in m/s
 lock turnlimit to min(1, 0.25 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the

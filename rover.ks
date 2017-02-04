@@ -73,28 +73,35 @@ until runmode = -1 {
   set currentSlopeAngle to 90 - arccos(dp).
 
   SET facvec TO SHIP:FACING.
-  set predicted TO body:GEOPOSITIONOF(facvec + V(0,0,200)).
+  set predicted1 TO body:GEOPOSITIONOF(facvec + V(0,0,30)).
+  set predicted2 TO body:GEOPOSITIONOF(facvec + V(0,0,35)).
 
-  PRINT "Predicted Height : " + round(predicted:TERRAINHEIGHT) + "        " AT (2,30).
+  PRINT "Predicted Height : " + round(predicted2:TERRAINHEIGHT) + "        " AT (2,30).
 
   PRINT "Current Height   : " + round(__current:TERRAINHEIGHT) + "     " AT (2,31).
-  PRINT "                 : " + round(predicted:TERRAINHEIGHT - __current:TERRAINHEIGHT) + "       " AT (2,32).
+  PRINT "                 : " + round(predicted2:TERRAINHEIGHT - __current:TERRAINHEIGHT) + "       " AT (2,32).
 
   // SET v2 TO VECDRAWARGS(
   //             predicted:ALTITUDEPOSITION(predicted:TERRAINHEIGHT+100),
   //             predicted:POSITION - predicted:ALTITUDEPOSITION(predicted:TERRAINHEIGHT+100),
   //             Green, "", 1, true,5).
       //Wheel Throttle:
-      SET targetspeed TO targetspeed + 0.05 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
+      SET targetspeed TO targetspeed + 0.1 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
       SET targetspeed TO max(-1, min( speedlimit, targetspeed)).
 
-      if route:LENGTH <> 0 AND rwaypoint <> -1 {
-        if predicted:TERRAINHEIGHT - __current:TERRAINHEIGHT < -50 {
+      if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint+1 < route:LENGTH {
+        SET heightdiff TO predicted2:TERRAINHEIGHT - predicted1:TERRAINHEIGHT.
+        LOCAL distance IS (predicted1:POSITION - predicted2:POSITION):MAG.
+        LOCAL angle IS ARCSIN(heightdiff/distance).
+        PRINT "                 : " + round(angle) + "       " AT (2,33).
+        if MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle) > 5 AND runmode = 0 {          //
           SET runmode TO 2.
+          SET lastSpeedLimit TO speedlimit.
           SET lastTargetSpeed TO targetspeed.
-          SET targetspeed TO 1.
-        } else if runmode = 2 {
+          SET speedlimit TO 1.
+        } else if runmode = 2 AND MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle) < 5 {
           SET runmode TO 0.
+          SET speedlimit TO lastSpeedLimit.
           SET targetspeed TO lastTargetSpeed.
         }
         SET headingDifference TO route[rwaypoint][0]:HEADING - cHeading.
@@ -104,11 +111,11 @@ until runmode = -1 {
           SET runmode TO 1.
           SET lastSpeedLimit TO speedlimit.
           SET lastTargetSpeed TO targetspeed.
-          SET speedlimit TO 1.5.
+          SET speedlimit TO 3.
         }
         if runmode = 3 {
           if DEFINED lastSpeedLimit {
-            if route[rwaypoint-1][0]:DISTANCE > 30 OR headingDifference <= 1 {
+            if route[rwaypoint-1][0]:DISTANCE > 30 OR headingDifference <= 2 {
               SET speedlimit TO lastSpeedLimit.
               SET targetspeed TO lastTargetSpeed.
               SET runmode TO 0.
@@ -124,14 +131,14 @@ until runmode = -1 {
             // LOCK WHEELSTEERING TO route[rwaypoint][0].
             LOCK targetHeading TO __grid:HEADING.
             SET runmode TO 3.
-          } else {
-            set route TO LIST().
-            set rwaypoint TO -1.
-            PRINT "         Rover has arrived at location                 " AT (0,1).
-            BRAKES ON.
-            UNLOCK targetheading.
           }
         }
+      } else {
+        set route TO LIST().
+        set rwaypoint TO -1.
+        PRINT "         Rover has arrived at location                 " AT (0,1).
+        BRAKES ON.
+        UNLOCK targetheading.
       }
 
 
@@ -158,9 +165,9 @@ until runmode = -1 {
           brakes on.
           }
 
-      IF brakes = 1 AND brakesOn = false { //DISable cruISe control IF the brakes are turned on.
-          SET targetspeed TO 0.
-          }
+      // IF brakes = 1 AND brakesOn = false { //DISable cruISe control IF the brakes are turned on.
+      //     SET targetspeed TO 0.
+      //     }
         //Steering:
         IF AG1 { //ActivATe autopilot IF Action group 1 IS on
             SET errorSteering TO (targetheading - cHeading).
@@ -289,7 +296,7 @@ until runmode = -1 {
     PRINT "E: " + ROUND(eWheelThrottle,2)+ "   "  AT ( 2, 20).
     PRINT "I: " + ROUND(iWheelThrottle,2) + "   " AT (10,20).
     PRINT "WTVAL " + ROUND(WTVAL,2) + "     " AT (2 ,21).
-    IF DEFINED route AND route:LENGTH <> 0 {
+    IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
       PRINT "Next Target    : " + round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + "         " AT (2, 24).
       PRINT "               : " + round(MAX(nextWaypointHeading,-1*nextWaypointHeading)) + "            " AT (2,25).
     }

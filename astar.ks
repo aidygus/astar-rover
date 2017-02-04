@@ -1,8 +1,8 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
 CLEARSCREEN.
-SET len to 100.                    // Size of the graph
-SET sindex TO 25.                  // Starting Y position in the graph
+SET len to 10.                    // Size of the graph
+SET sindex TO 2.                  // Starting Y position in the graph
 SET gindex TO CEILING((len-1)/2). //  Grid reference for the center of the graph which is the goal
 SET TERMINAL:WIDTH TO len + 10.
 SET TERMINAL:HEIGHT TO len + 10.
@@ -201,7 +201,7 @@ FUNCTION get_neighbours {
             LOCAL setlist TO 0.
             LOCAL distance IS (grid:POSITION-node[2]:POSITION):MAG.
             LOCAL angle IS ARCSIN(heightdiff/distance).
-            if angle > -8 AND angle < 15 AND grid:TERRAINHEIGHT >=0 {
+            if angle > -4 AND angle < 13 AND grid:TERRAINHEIGHT >=0 {
                 PRINT "." AT (gridx,gridy).
                 place_marker(grid,yellow,5,100,round(angle),0.05).
                 os:ADD(LIST(chk,gridy, gridx,_fscore)).
@@ -212,7 +212,11 @@ FUNCTION get_neighbours {
               cs:ADD(LIST(chk,gridy, gridx,_fscore)).
               SET setlist TO 2.
             } else {
-              PRINT "^" AT (gridx, gridy).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+              if angle <= -3 {
+                PRINT "v" AT (gridx, gridy).
+              } else {
+                PRINT "^" AT (gridx, gridy).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+              }
             }
             // Update the graph with what we've discovered about this cell.
             if setlist <> 0 {

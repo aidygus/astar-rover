@@ -1,5 +1,5 @@
 // rover.ks
-// Originally direction and speed routines written by KK4TEE
+// Original direction and speed routines written by KK4TEE
 // Updated with waypoint management by aidygus
 // License: GPLv3
 //
@@ -10,9 +10,11 @@
 
 PARAMETER debug IS true.
 SET speedlimit TO 4. //All speeds are in m/s
+SET lastSpeedLimit TO speedlimit.
 lock turnlimit to min(1, 0.25 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
                    //turning radius based on __current speed
-
+SET TERMINAL:WIDTH TO 30.
+SET TERMINAL:HEIGHT TO 40.
 SET const_gravity TO BODY:mu / BODY:RADIUS ^ 2.
 SET looptime TO 0.01.
 SET loopEndTime TO TIME:SECONDS.
@@ -38,6 +40,9 @@ set lastBrake to -1.
 set brakeUseCount to 0.
 set currentOverSpeed to overSpeedCruise.
 set currentBrakeTime to cruiseSpeedBrakeTime.
+SET lasttargetspeed TO 4.
+SET stopDistance TO 0.5.
+SET gradient TO 0.
 
 clearscreen.
 CLEARVECDRAWS().
@@ -45,7 +50,15 @@ sas off.
 rcs off.
 lights on.
 LOCK throttle TO 0.
+
 SET runmode TO 0.
+    // Valid runmodes
+    //    0 Normal Operation
+    //    1 Approaching Waymarker
+    //    2 Change of slope angle ahead
+    //    3 Moving away from waypoint
+    //    4 Very Steep Slope ahead.  Find alternative route.
+
 LOCK __current TO SHIP:GEOPOSITION.
 SET __goal TO SHIP:GEOPOSITION.
 SET __grid TO SHIP:GEOPOSITION.
@@ -70,20 +83,6 @@ until runmode = -1 {
       SET cHeading TO (180 - northPole:bearing) + 180.
       }
 
-  // IF runmode = 0 { //Govern the rover
-  set upvec to up:vector.
-  set velvec to ship:velocity:surface:normalized.
-  set dp to vdot(velvec,upvec).
-  set currentSlopeAngle to 90 - arccos(dp).
-
-  SET facvec TO SHIP:FACING.
-  set predicted1 TO body:GEOPOSITIONOF(facvec + V(0,0,30)).
-  set predicted2 TO body:GEOPOSITIONOF(facvec + V(0,0,35)).
-
-  PRINT "Predicted Height : " + round(predicted2:TERRAINHEIGHT) + "        " AT (2,30).
-
-  PRINT "Current Height   : " + round(__current:TERRAINHEIGHT) + "     " AT (2,31).
-  PRINT "                 : " + round(predicted2:TERRAINHEIGHT - __current:TERRAINHEIGHT) + "       " AT (2,32).
 
   // SET v2 TO VECDRAWARGS(
   //             predicted:ALTITUDEPOSITION(predicted:TERRAINHEIGHT+100),
@@ -92,21 +91,74 @@ until runmode = -1 {
       //Wheel Throttle:
       SET targetspeed TO targetspeed + 0.1 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
       SET targetspeed TO max(-1, min( speedlimit, targetspeed)).
+      set upvec to up:vector.
+      set velvec to ship:velocity:surface:normalized.
+      set dp to vdot(velvec,upvec).
+      set currentSlopeAngle to 90 - arccos(dp).
+
+
+      SET facvec TO SHIP:FACING.
 
       if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint+1 < route:LENGTH {
+        // IF runmode = 0 { //Govern the rover
+        set predicted1 TO body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5))).
+        set predicted2 TO body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5)+1)).
         SET heightdiff TO predicted2:TERRAINHEIGHT - predicted1:TERRAINHEIGHT.
-        LOCAL distance IS (predicted1:POSITION - predicted2:POSITION):MAG.
-        LOCAL angle IS ARCSIN(heightdiff/distance).
-        PRINT "                 : " + round(angle) + "       " AT (2,33).
-        if MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle) > 5 AND runmode = 0 {          //
+        SET distance TO (predicted1:POSITION - predicted2:POSITION):MAG.
+        SET angle TO ARCSIN(heightdiff/distance).
+        SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
+        SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
+        PRINT "Predicted Angle : " + round(angle) + "       " AT (2,30).
+        PRINT "Difference      : " + round(pangle) + "       " aT (2,31).
+
+        SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
+        if pangle > 5 AND runmode = 0 {          //
           SET runmode TO 2.
           SET lastSpeedLimit TO speedlimit.
           SET lastTargetSpeed TO targetspeed.
           SET speedlimit TO 1.
-        } else if runmode = 2 AND MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle) < 5 {
+        } else if runmode = 2 AND pangle < 5 {
           SET runmode TO 0.
           SET speedlimit TO lastSpeedLimit.
           SET targetspeed TO lastTargetSpeed.
+        }
+        if angle < -10 AND runmode <> 4 {
+          SET runmode TO 4.
+          SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
+          LOCK targetHeading TO __grid:HEADING.
+        }
+        if runmode = 4
+        {
+          if MAX(nextWaypointHeading,-1*nextWaypointHeading) < 2 {
+            SET speedlimit TO lastSpeedLimit.
+            SET targetspeed TO lastTargetSpeed.
+          }
+          if __grid:DISTANCE < 40 AND brakesOn = false {
+            SET brakesOn TO true.
+            SET speedlimit TO 0.
+            SET targetspeed TO 0.
+          }
+          if GROUNDSPEED < 0.1 {
+            SET brakesOn TO true.
+            SET speedlimit TO 0.
+            SET targetspeed TO 0.
+            LOCAL backupRoute IS route.
+            LOCAL newGoal IS LATLNG(route[rwaypoint+1][0]:LAT,route[rwaypoint+1][0]:LNG).
+            RUNPATH("/asrover/astar","LATLNG",newGoal,false).
+            CLEARSCREEN.
+            FROM { LOCAL c IS route:LENGTH - 1. } until c = 1 STEP {SET c TO c-1. } DO {
+              backupRoute:INSERT(rwaypoint,route[c]).
+            }
+            SET route TO backupRoute.
+            SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
+            LOCK targetHeading TO __grid:HEADING.
+            SET brakesOn TO false.
+            BRAKES OFF.
+            SET AG1 TO TRUE.
+            SET targetspeed TO 3.
+            SET speedlimit TO 3.
+            SET runmode TO 1.
+          }
         }
         SET headingDifference TO route[rwaypoint][0]:HEADING - cHeading.
         SET headingDifference TO MAX(headingDifference,-1*headingDifference).
@@ -118,13 +170,9 @@ until runmode = -1 {
           SET speedlimit TO 3.
         }
         if runmode = 3 {
-          if DEFINED lastSpeedLimit {
-            if route[rwaypoint-1][0]:DISTANCE > 30 OR headingDifference <= 2 {
-              SET speedlimit TO lastSpeedLimit.
-              SET targetspeed TO lastTargetSpeed.
-              SET runmode TO 0.
-            }
-          } else {
+          if route[rwaypoint-1][0]:DISTANCE > 30 OR headingDifference <= 2 {
+            SET speedlimit TO lastSpeedLimit.
+            SET targetspeed TO lastTargetSpeed.
             SET runmode TO 0.
           }
         }
@@ -139,7 +187,9 @@ until runmode = -1 {
         }
       } else {
         set route TO LIST().
+        SET targetspeed TO 0.
         set rwaypoint TO -1.
+        SET runmode TO 0.
         PRINT "         Rover has arrived at location                 " AT (0,1).
         BRAKES ON.
         UNLOCK targetheading.
@@ -215,45 +265,26 @@ until runmode = -1 {
 
 
     //Handle User Input using action groups
-        IF AG2 { // SET heading TO the __current heading
-            SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
-            nav_marker().
-            SET AG2 TO FALSE. //ReSET the AG after we read it
-            }
-        ELSE IF AG3 { // Decrease the heading
-            SET __goal TO LATLNG(__goal:LAT-0.1,__goal:LNG).
-            nav_marker().
-            SET AG3 TO FALSE.
-            }
-        ELSE IF AG4 { // Increase the heading
-            SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.1).
-            nav_marker().
-            SET AG4 TO FALSE.
-             }
-        ELSE IF AG5 {
-            SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.1).
-            nav_marker().
-             SET AG5 TO FALSE.
-             //Prevent increase IF we are decreasing
-             }
-        ELSE IF AG6 {
-             SET __goal TO SHIP:GEOPOSITION.
-             nav_marker().
-             SET targetspeed TO 0.
-             SET route TO LIST().
-             SET rwaypoint TO -1.
-             SET AG6 TO FALSE.
-             //Prevent decrease IF we are increasing
-             }
-            else if AG7 {
-                 set speedlimit to speedlimit - 0.5.
-                 set AG7 to FALSE.
-                 }
-             else if AG8 {
-                 set speedlimit to speedlimit + 0.5.
-                 set AG8 to FALSE.
-             }
-      ELSE IF AG9 {
+    IF TERMINAL:INPUT:HASCHAR {
+      SET K TO TERMINAL:INPUT:GETCHAR().
+
+      IF K = TERMINAL:INPUT:UPCURSORONE {
+        SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
+        nav_marker().
+      }
+      IF K = TERMINAL:INPUT:DOWNCURSORONE {
+        SET __goal TO LATLNG(__goal:LAT-0.1,__goal:LNG).
+        nav_marker().
+      }
+      IF K = TERMINAL:INPUT:LEFTCURSORONE {
+        SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.1).
+        nav_marker().
+      }
+      IF K = TERMINAL:INPUT:RIGHTCURSORONE {
+        SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.1).
+        nav_marker().
+      }
+      IF K = TERMINAL:INPUT:ENTER {
         CLEARSCREEN.
         RUNPATH("/asrover/astar","LATLNG",__goal,false).
         CLEARSCREEN.
@@ -264,10 +295,37 @@ until runmode = -1 {
         SET AG9 TO FALSE.
         BRAKES OFF.
         SET AG1 TO TRUE.
-        // CLEARVECDRAWS().
+        SET targetspeed TO speedlimit.
+        SET lastSpeedLimit TO speedlimit.
+        SET lasttargetspeed TO targetspeed.
       }
-
-
+      IF K = TERMINAL:INPUT:PAGEUPCURSOR {
+        set speedlimit to speedlimit + 0.5.
+        SET targetspeed TO speedlimit.
+        SET lastSpeedLimit TO speedlimit.
+        SET lasttargetspeed TO targetspeed.
+        set AG7 to FALSE.
+        }
+      if K = TERMINAL:INPUT:PAGEDOWNCURSOR {
+        set speedlimit to speedlimit - 0.5.
+        SET targetspeed TO speedlimit.
+        SET lastSpeedLimit TO speedlimit.
+        SET lastTargetSpeed TO targetspeed.
+        set AG8 to FALSE.
+      }
+      IF K = TERMINAL:INPUT:HOMECURSOR {
+        SET __goal TO SHIP:GEOPOSITION.
+        nav_marker().
+        SET targetspeed TO 0.
+        SET route TO LIST().
+        SET rwaypoint TO -1.
+        SET AG6 TO FALSE.
+        //Prevent decrease IF we are increasing
+      }
+      IF K = TERMINAL:INPUT:ENDCURSOR {
+        SET runmode TO -1.
+      }
+    }
 
       IF targetHeading > 360 {
         SET targetHeading TO targetHeading - 360.
@@ -293,19 +351,25 @@ until runmode = -1 {
     PRINT "CurrentHeading: " + ROUND( cheading, 2) + "        " AT (2, 13).
     PRINT "CruISe Control: " + AG1 + "   " AT (2, 14).
 
-    PRINT "Target Dist   : " + ROUND(__grid:DISTANCE, 2) + "        " AT (2, 16).
+    PRINT "Waypoint Dist   : " + ROUND(__grid:DISTANCE, 2) + "        " AT (2, 16).
     PRINT "Waypoints     : " + route:LENGTH + "        " AT (2, 17).
     PRINT "Current WP    : " + rwaypoint + "        " AT (2, 18).
 
     PRINT "E: " + ROUND(eWheelThrottle,2)+ "   "  AT ( 2, 20).
     PRINT "I: " + ROUND(iWheelThrottle,2) + "   " AT (10,20).
     PRINT "WTVAL " + ROUND(WTVAL,2) + "     " AT (2 ,21).
+
     IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
-      PRINT "Next Target    : " + round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + "         " AT (2, 24).
-      PRINT "               : " + round(MAX(nextWaypointHeading,-1*nextWaypointHeading)) + "            " AT (2,25).
+      PRINT "Next Target     : " + round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + "         " AT (2, 24).
+      PRINT "Next HEading    : " + round(nextWaypointHeading) + "            " AT (2,25).
     }
-    PRINT "Current Angle   : " + round(currentSlopeAngle,2) + "          " AT (2,26).
-    PRINT "Runmode " + Runmode + "            " AT (2, 27).
+    PRINT "Current Angle   : " + round(currentSlopeAngle,2) + "          " AT (2,28).
+
+    PRINT "Distance to goal: " + round(__goal:DISTANCE) + "        " AT (2,33).
+    PRINT "Runmode         :" + Runmode + "            " AT (2, 34).
+
+        PRINT "Stopping Dist   : " + round(stopDistance,4) + "        " AT (2,36).
+        PRINT "Gradient        : " + round(gradient,4) + "      " AT (2,37).
 
     SET looptime TO TIME:SECONDS - loopEndTime.
     SET loopEndTime TO TIME:SECONDS.

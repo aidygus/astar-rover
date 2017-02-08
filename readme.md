@@ -10,7 +10,7 @@ Set the desired speed of the rover while cruising between waypoints.
 
 ### Set a single destination
 
-The A* algorythm will find the safest path it can find.  It dose this by trying to avoid steep slopes prefering routes between -5 and +15 degrees.
+The A* algorythm will find the safest path it can find.  It does this by trying to avoid steep slopes prefering routes between -5 and +15 degrees.
 
 ### Automatic speed limiter
 

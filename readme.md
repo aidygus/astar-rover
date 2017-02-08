@@ -24,14 +24,14 @@ There are 3 scenarios where it will reduce or maintain speed.
 
 Managing the rover is done through Terminal Input commands these are :
 
-Up arrow      - Increment Latitude by 0.1 degrees
-Down arrow    - Decrease latitude by 0.1 degress
-Left arrow    - Increase Longitude by 0.1 degrees
-Right arrow   - Decrease Longitued by 0.1 degrees
+* Up arrow      - Increment Latitude by 0.1 degrees
+* Down arrow    - Decrease latitude by 0.1 degress
+* Left arrow    - Increase Longitude by 0.1 degrees
+* Right arrow   - Decrease Longitued by 0.1 degrees
 
-HOME          - Return arrow vector to vehicle
+* HOME          - Return arrow vector to vehicle
 
-Enter/return  - Execute astar path finding algorythm to destination
+* Enter/return  - Execute astar path finding algorythm to destination
 
-Page Up       - Increase rover speed by 0.5 m/s
-Page down     - Decrease rover speed by 0.5 m/s
+* Page Up       - Increase rover speed by 0.5 m/s
+* Page down     - Decrease rover speed by 0.5 m/s

@@ -29,9 +29,17 @@ Managing the rover is done through Terminal Input commands these are :
 * Left arrow    - Increase Longitude by 0.1 degrees
 * Right arrow   - Decrease Longitued by 0.1 degrees
 
+
+
 * HOME          - Return arrow vector to vehicle
+* END           - Exit the rover manager
+* INSERT        - Mark the first waypoint for a multi stage journey
+
+
 
 * Enter/return  - Execute astar path finding algorythm to destination
+
+
 
 * Page Up       - Increase rover speed by 0.5 m/s
 * Page down     - Decrease rover speed by 0.5 m/s

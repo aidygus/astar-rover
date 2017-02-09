@@ -43,6 +43,8 @@ set currentBrakeTime to cruiseSpeedBrakeTime.
 SET lasttargetspeed TO 4.
 SET stopDistance TO 0.5.
 SET gradient TO 0.
+SET wpm TO LIST().
+SET navpoints TO LIST().
 
 clearscreen.
 CLEARVECDRAWS().
@@ -150,11 +152,7 @@ until runmode = -1 {
               backupRoute:INSERT(rwaypoint,route[c]).
             }
             SET route TO backupRoute.
-            SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
-            LOCK targetHeading TO __grid:HEADING.
-            SET brakesOn TO false.
-            BRAKES OFF.
-            SET AG1 TO TRUE.
+            start_navigation().
             SET targetspeed TO 3.
             SET speedlimit TO 3.
             SET runmode TO 1.
@@ -190,9 +188,18 @@ until runmode = -1 {
         SET targetspeed TO 0.
         set rwaypoint TO -1.
         SET runmode TO 0.
-        PRINT "         Rover has arrived at location                 " AT (0,1).
-        BRAKES ON.
-        UNLOCK targetheading.
+        IF navpoints:LENGTH <> 0 {
+          LOCAL gl IS navpoints[0].
+          navpoints:REMOVE(0).
+          CLEARSCREEN.
+          RUNPATH("/asrover/astar","LATLNG",gl,false).
+          start_navigation().
+        } else {
+          PRINT "         Rover has arrived at location                 " AT (0,1).
+          SET targetspeed TO 0.
+          BRAKES ON.
+          UNLOCK targetheading.
+        }
       }
 
 
@@ -233,11 +240,9 @@ until runmode = -1 {
                 }
             SET desiredSteering TO -errorSteering / 20.
             SET kturn TO min( 1, max( -1, desiredSteering)) * turnlimit.
-            // SET STEERINGMANAGER:MAXSTOPPINGTIME TO GROUNDSPEED / const_gravity.
             }
         ELSE {
-            // SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
-            // SET STEERINGMANAGER:MAXSTOPPINGTIME TO const_gravity * GROUNDSPEED.
+            SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
         }
 
         when abs(GROUNDSPEED) > targetspeed then {  // borrowed from gaiiden / RoverDriver https://github.com/Gaiiden/RoverDriver/blob/master/begindrive.txt
@@ -285,19 +290,15 @@ until runmode = -1 {
         nav_marker().
       }
       IF K = TERMINAL:INPUT:ENTER {
+        if navpoints:LENGTH = 0 {
+          LOCAL gl IS __goal
+        } else {
+          LOCAL gl IS navpoints[0].
+          navpoints:REMOVE(0).
+        }
         CLEARSCREEN.
-        RUNPATH("/asrover/astar","LATLNG",__goal,false).
-        CLEARSCREEN.
-        SET rwaypoint TO 0.
-        SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
-        LOCK targetHeading TO __grid:HEADING.
-        // LOCK WHEELSTEERING TO route[rwaypoint][0].
-        SET AG9 TO FALSE.
-        BRAKES OFF.
-        SET AG1 TO TRUE.
-        SET targetspeed TO speedlimit.
-        SET lastSpeedLimit TO speedlimit.
-        SET lasttargetspeed TO targetspeed.
+        RUNPATH("/asrover/astar","LATLNG",gl,false).
+        start_navigation().
       }
       IF K = TERMINAL:INPUT:PAGEUPCURSOR {
         set speedlimit to speedlimit + 0.5.
@@ -321,6 +322,10 @@ until runmode = -1 {
         SET rwaypoint TO -1.
         SET AG6 TO FALSE.
         //Prevent decrease IF we are increasing
+      }
+      IF K = TERMINAL:INPUT:INSERTCURSOR {
+        navpoints:ADD(__goal).
+        waypoint_marker().
       }
       IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
@@ -381,4 +386,24 @@ until runmode = -1 {
                   __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
                   __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
                   Green, "", 1, true,50).
+    }
+
+    FUNCTION waypoint_marker {
+      SET wpm:ADD(VECDRAWARGS(
+                  __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+800),
+                  __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+800),
+                  Blue, "", 1, true,50)).
+    }
+
+    FUNCTION start_navigation()
+    {
+      CLEARSCREEN.
+      SET rwaypoint TO 0.
+      SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
+      LOCK targetHeading TO __grid:HEADING.
+      BRAKES OFF.
+      SET AG1 TO TRUE.
+      SET targetspeed TO speedlimit.
+      SET lastSpeedLimit TO speedlimit.
+      SET lasttargetspeed TO targetspeed.
     }

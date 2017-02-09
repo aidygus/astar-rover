@@ -184,11 +184,11 @@ until runmode = -1 {
           }
         }
       } else {
-        set route TO LIST().
-        SET targetspeed TO 0.
-        set rwaypoint TO -1.
-        SET runmode TO 0.
-        IF navpoints:LENGTH <> 0 {
+        IF navpoints:LENGTH <> 0 AND rwaypoint <> -1{
+          set route TO LIST().
+          SET targetspeed TO 0.
+          set rwaypoint TO -1.
+          SET runmode TO 0.
           LOCAL gl IS navpoints[0].
           navpoints:REMOVE(0).
           CLEARSCREEN.
@@ -277,42 +277,41 @@ until runmode = -1 {
         SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
         nav_marker().
       }
-      IF K = TERMINAL:INPUT:DOWNCURSORONE {
+      ELSE IF K = TERMINAL:INPUT:DOWNCURSORONE {
         SET __goal TO LATLNG(__goal:LAT-0.1,__goal:LNG).
         nav_marker().
       }
-      IF K = TERMINAL:INPUT:LEFTCURSORONE {
+      ELSE IF K = TERMINAL:INPUT:LEFTCURSORONE {
         SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.1).
         nav_marker().
       }
-      IF K = TERMINAL:INPUT:RIGHTCURSORONE {
+      ELSE IF K = TERMINAL:INPUT:RIGHTCURSORONE {
         SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.1).
         nav_marker().
       }
-      IF K = TERMINAL:INPUT:ENTER {
+      ELSE IF K = TERMINAL:INPUT:RETURN {
         if navpoints:LENGTH = 0 {
-          LOCAL gl IS __goal
+          RUNPATH("/asrover/astar","LATLNG",__goal,false).
         } else {
-          LOCAL gl IS navpoints[0].
+          RUNPATH("/asrover/astar","LATLNG",navpoints[0],false).
           navpoints:REMOVE(0).
         }
         CLEARSCREEN.
-        RUNPATH("/asrover/astar","LATLNG",gl,false).
         start_navigation().
       }
-      IF K = TERMINAL:INPUT:PAGEUPCURSOR {
+      ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR {
         set speedlimit to speedlimit + 0.5.
         SET targetspeed TO speedlimit.
         SET lastSpeedLimit TO speedlimit.
         SET lasttargetspeed TO targetspeed.
         }
-      if K = TERMINAL:INPUT:PAGEDOWNCURSOR {
+      ELSE if K = TERMINAL:INPUT:PAGEDOWNCURSOR {
         set speedlimit to speedlimit - 0.5.
         SET targetspeed TO speedlimit.
         SET lastSpeedLimit TO speedlimit.
         SET lastTargetSpeed TO targetspeed.
       }
-      IF K = TERMINAL:INPUT:HOMECURSOR {
+      ELSE IF K = TERMINAL:INPUT:HOMECURSOR {
         SET __goal TO SHIP:GEOPOSITION.
         nav_marker().
         SET targetspeed TO 0.
@@ -320,11 +319,11 @@ until runmode = -1 {
         SET rwaypoint TO -1.
         //Prevent decrease IF we are increasing
       }
-      IF K = TERMINAL:INPUT:INSERTCURSOR {
+      ELSE IF K = "i" OR K = "I" {
         navpoints:ADD(__goal).
         waypoint_marker().
       }
-      IF K = TERMINAL:INPUT:ENDCURSOR {
+      ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
       }
     }
@@ -386,13 +385,13 @@ until runmode = -1 {
     }
 
     FUNCTION waypoint_marker {
-      SET wpm:ADD(VECDRAWARGS(
+      wpm:ADD(VECDRAWARGS(
                   __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+800),
                   __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+800),
                   Blue, "", 1, true,50)).
     }
 
-    FUNCTION start_navigation()
+    FUNCTION start_navigation
     {
       CLEARSCREEN.
       SET rwaypoint TO 0.

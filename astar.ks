@@ -190,6 +190,7 @@ FUNCTION get_neighbours {
         }
         //  If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
         if scount = 3 {
+          PRINT "!" AT (current[1],current[0]).
           SET l[current[0]][current[1]][4] TO 2.
           LOCAL d IS l[current[0]][current[1]][5].
           SET l[current[0]][current[1]][5] TO LIST().

@@ -305,14 +305,12 @@ until runmode = -1 {
         SET targetspeed TO speedlimit.
         SET lastSpeedLimit TO speedlimit.
         SET lasttargetspeed TO targetspeed.
-        set AG7 to FALSE.
         }
       if K = TERMINAL:INPUT:PAGEDOWNCURSOR {
         set speedlimit to speedlimit - 0.5.
         SET targetspeed TO speedlimit.
         SET lastSpeedLimit TO speedlimit.
         SET lastTargetSpeed TO targetspeed.
-        set AG8 to FALSE.
       }
       IF K = TERMINAL:INPUT:HOMECURSOR {
         SET __goal TO SHIP:GEOPOSITION.
@@ -320,7 +318,6 @@ until runmode = -1 {
         SET targetspeed TO 0.
         SET route TO LIST().
         SET rwaypoint TO -1.
-        SET AG6 TO FALSE.
         //Prevent decrease IF we are increasing
       }
       IF K = TERMINAL:INPUT:INSERTCURSOR {

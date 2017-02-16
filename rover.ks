@@ -28,6 +28,7 @@ SET NORTHPOLE TO lATlng( 90, 0). //Reference heading
 SET AG9 TO FALSE.
 SET lockcounter TO 0.
 SET nextWaypointHeading TO 0.
+SET spc TO "            ".
 
 set overSpeedDownSlopeBrakeTime to 0.3.
 set extremeSlopeAngle to 8.
@@ -111,8 +112,8 @@ until runmode = -1 {
         SET angle TO ARCSIN(heightdiff/distance).
         SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
         SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
-        PRINT round(angle) + "    " AT (20,30).
-        PRINT round(pangle) + "    " aT (20,31).
+        PRINT round(angle) + spc AT (20,30).
+        PRINT round(pangle) + spc AT (20,31).
 
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
@@ -194,7 +195,7 @@ until runmode = -1 {
           RUNPATH("/asrover/astar","LATLNG",gl,false).
           start_navigation().
         } else {
-          PRINT "         Rover has arrived at location                 " AT (0,1).
+          PRINT "  ---{   Rover has arrived at location  }---" + spc AT (0,1).
           SET targetspeed TO 0.
           BRAKES ON.
           UNLOCK targetheading.
@@ -282,6 +283,7 @@ until runmode = -1 {
 
     //Handle User Input using action groups
     IF TERMINAL:INPUT:HASCHAR {
+      PRINT "                      " AT (2,TERMINAL:HEIGHT).
       SET K TO TERMINAL:INPUT:GETCHAR().
       SET N TO K:TONUMBER(FALSE).
       IF K = TERMINAL:INPUT:UPCURSORONE {
@@ -308,6 +310,7 @@ until runmode = -1 {
           navpoints:REMOVE(0).
         }
         start_navigation().
+        PRINT "  ---{   Navigating to LAT " + round(__goal:LAT,1) +" : LNG " + round(__goal:LNG,1) "   }---" AT (0,1).
       }
       ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR {
         SET targetspeed TO targetspeed + 0.5.
@@ -346,7 +349,10 @@ until runmode = -1 {
           SET runmode TO 0.
           RUNPATH("/asrover/astar","WAYPOINT",contractWayPoints[N-1]:NAME,false).
           start_navigation().
+          PRINT "  ---{   Navigating to " + contractWayPoints[N-1]:NAME +"   }---" AT (0,1).
         }
+      } ELSE {
+        PRINT "# UNKNOWN COMMAND # " AT (2,TERMINAL:HEIGHT - 2).
       }
     }
 
@@ -370,7 +376,6 @@ until runmode = -1 {
         LOCAL y IS y+1.
       }
     } else {
-      LOCAL spc IS "          ".
       PRINT ROUND( targetspeed, 1) \+ spc AT (20, 3).
       PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 4).
 
@@ -387,9 +392,9 @@ until runmode = -1 {
       PRINT route:LENGTH + spc AT (20, 17).
       PRINT rwaypoint + spc AT (20, 18).
 
-      PRINT ROUND(eWheelThrottle,2) + spc  AT ( 6, 20).
-      PRINT ROUND(iWheelThrottle,2) + spc AT (14,20).
-      PRINT ROUND(WTVAL,2) + "     " AT (20 ,21).
+      PRINT ROUND(eWheelThrottle,2)  AT ( 6, 20).
+      PRINT ROUND(iWheelThrottle,2) AT (14,20).
+      PRINT ROUND(WTVAL,2) + spc AT (20 ,21).
 
       IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
         PRINT round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + spc AT (20, 24).

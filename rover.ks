@@ -1,4 +1,4 @@
-// rover.ks
++ spc AT// rover.ks
 // Original direction and speed routines written by KK4TEE
 // Updated with waypoint management by aidygus
 // License: GPLv3
@@ -10,7 +10,7 @@
 
 PARAMETER debug IS true.
 
-lock turnlimit to min(1, 0.25 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
+lock turnlimit to min(1, 0.2 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 30.
 SET TERMINAL:HEIGHT TO 40.
@@ -63,6 +63,7 @@ SET runmode TO 0.
     //    4 Very Steep Slope ahead.  Find alternative route.
     //    5 Has hit an obstacle.
     //    6 Attempting to move round obstacle.
+
     //    10 Select Waypoint
 
 LOCK __current TO SHIP:GEOPOSITION.
@@ -71,10 +72,6 @@ SET __grid TO SHIP:GEOPOSITION.
 nav_marker().
 SET route TO LIST().
 SET rwaypoint TO -1.
-on ag10 { //When the 0 key IS pressed:
-    // End the program
-    SET runmode TO -1.
-    }
 
 until runmode = -1 {
   //UpdATe the compass:
@@ -373,36 +370,37 @@ until runmode = -1 {
         LOCAL y IS y+1.
       }
     } else {
-      PRINT ROUND( targetspeed, 1) + "        " AT (20, 3).
-      PRINT ROUND( GROUNDSPEED, 1) + "        " AT (20, 4).
+      LOCAL spc IS "          ".
+      PRINT ROUND( targetspeed, 1) \+ spc AT (20, 3).
+      PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 4).
 
-      PRINT ROUND( SHIP:CONTROL:PILOTWHEELTHROTTLE, 2) + "        " AT (20, 7).
-      PRINT ROUND( wtVAL, 2) + "        " AT (20, 8).
-      PRINT ROUND( SHIP:CONTROL:PILOTWHEELSTEER, 2) + "        " AT (20, 9).
-      PRINT ROUND( kTurn, 2) + "        " AT (20, 10).
+      PRINT ROUND( SHIP:CONTROL:PILOTWHEELTHROTTLE, 2) + spc AT (20, 7).
+      PRINT ROUND( wtVAL, 2) + spc AT (20, 8).
+      PRINT ROUND( SHIP:CONTROL:PILOTWHEELSTEER, 2) + spc AT (20, 9).
+      PRINT ROUND( kTurn, 2) + spc AT (20, 10).
 
-      PRINT ROUND( targetheading, 2) + "        " AT (20, 12).
-      PRINT ROUND( cheading, 2) + "        " AT (20, 13).
+      PRINT ROUND( targetheading, 2) + spc AT (20, 12).
+      PRINT ROUND( cheading, 2) + spc AT (20, 13).
       PRINT AG1 + "   " AT (20, 14).
 
-      PRINT ROUND(__grid:DISTANCE, 2) + "        " AT (20, 16).
-      PRINT route:LENGTH + "        " AT (20, 17).
-      PRINT rwaypoint + "        " AT (20, 18).
+      PRINT ROUND(__grid:DISTANCE, 2) + spc AT (20, 16).
+      PRINT route:LENGTH + spc AT (20, 17).
+      PRINT rwaypoint + spc AT (20, 18).
 
-      PRINT ROUND(eWheelThrottle,2) + "   "  AT ( 6, 20).
-      PRINT ROUND(iWheelThrottle,2) + "   " AT (14,20).
+      PRINT ROUND(eWheelThrottle,2) + spc  AT ( 6, 20).
+      PRINT ROUND(iWheelThrottle,2) + spc AT (14,20).
       PRINT ROUND(WTVAL,2) + "     " AT (20 ,21).
 
       IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
-        PRINT round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + "         " AT (20, 24).
-        PRINT round(nextWaypointHeading) + "            " AT (20,25).
+        PRINT round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + spc AT (20, 24).
+        PRINT round(nextWaypointHeading) + spc AT (20,25).
       }
-      PRINT round(currentSlopeAngle,2) + "          " AT (20,28).
+      PRINT round(currentSlopeAngle,2) + spc AT (20,28).
 
-      PRINT round(__goal:DISTANCE) + "        " AT (20,33).
-      PRINT Runmode + "            " AT (20, 34).
-      PRINT round(stopDistance,4) + "        " AT (20,36).
-      PRINT round(gradient,4) + "      " AT (20,37).
+      PRINT round(__goal:DISTANCE) + spc AT (20,33).
+      PRINT Runmode + spc AT (20, 34).
+      PRINT round(stopDistance,4) + spc AT (20,36).
+      PRINT round(gradient,4) + spc AT (20,37).
     }
     SET looptime TO TIME:SECONDS - loopEndTime.
     SET loopEndTime TO TIME:SECONDS.
@@ -410,34 +408,33 @@ until runmode = -1 {
     }
 
     FUNCTION display_HUD {
-      PRINT "Target Speed    :" AT (2, 3).
-      PRINT "Surface Speed   :" AT (2, 4).
+      PRINT "Target Speed    :" AT (2,3).
+      PRINT "Surface Speed   :" AT (2,4).
 
-      PRINT "Pilot Throttle  :" AT (2, 7).
-      PRINT "Kommanded tVAL  :" (2, 8).
-      PRINT "Pilot Turn      :" AT (2, 9).
-      PRINT "Kommanded Turn  :" AT (2, 10).
+      PRINT "Pilot Throttle  :" AT (2,7).
+      PRINT "Kommanded tVAL  :" (2,8).
+      PRINT "Pilot Turn      :" AT (2,9).
+      PRINT "Kommanded Turn  :" AT (2,10).
+      PRINT "Target Heading  :" AT (2,12).
+      PRINT "CurrentHeading  :" AT (2,13).
+      PRINT "Cruise Control  :" AT (2,14).
 
-      PRINT "Target Heading  :" AT (2, 12).
-      PRINT "CurrentHeading  :" AT (2, 13).
-      PRINT "Cruise Control  :" AT (2, 14).
-
-      PRINT "Waypoint Dist   :"  AT (2, 16).
-      PRINT "Waypoints       :" AT (2, 17).
-      PRINT "Current WP      :" AT (2, 18).
+      PRINT "Waypoint Dist   :"  AT (2,16).
+      PRINT "Waypoints       :" AT (2,17).
+      PRINT "Current WP      :" AT (2,18).
 
       PRINT "E:" AT ( 2, 20).
       PRINT "I:" AT (10,20).
       PRINT "WTVAL " AT (2 ,21).
 
-      PRINT "Next Target     :" AT (2, 24).
+      PRINT "Next Target     :" AT (2,24).
       PRINT "Next Heading    :" AT (2,25).
       PRINT "Current Angle   :" AT (2,28).
       PRINT "Predicted Angle :" AT (2,29).
       PRINT "Difference      :" AT (2,30).
 
       PRINT "Distance to goal:" AT (2,33).
-      PRINT "Runmode         :" AT (2, 34).
+      PRINT "Runmode         :" AT (2,34).
       PRINT "Stopping Dist   :" AT (2,36).
       PRINT "Gradient        :" AT (2,37).
     }

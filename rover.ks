@@ -9,8 +9,7 @@
 // and monitoring for fully automated rovers
 
 PARAMETER debug IS true.
-SET speedlimit TO 4. //All speeds are in m/s
-SET lastSpeedLimit TO speedlimit.
+
 lock turnlimit to min(1, 0.25 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 30.
@@ -23,6 +22,7 @@ SET iWheelThrottle TO 0. // AccumulATed speed error
 SET wtVAL TO 0. //Wheel Throttle Value
 SET kTurn TO 0. //Wheel turn value.
 SET targetspeed TO 0. //CruISe control starting speed
+SET lastTargetSpeed TO 4.
 SET targetHeading TO 90. //Used for autopilot steering
 SET NORTHPOLE TO lATlng( 90, 0). //Reference heading
 SET AG9 TO FALSE.
@@ -40,11 +40,11 @@ set lastBrake to -1.
 set brakeUseCount to 0.
 set currentOverSpeed to overSpeedCruise.
 set currentBrakeTime to cruiseSpeedBrakeTime.
-SET lasttargetspeed TO 4.
 SET stopDistance TO 0.5.
 SET gradient TO 0.
 SET wpm TO LIST().
 SET navpoints TO LIST().
+SET contractWayPoints TO LIST().
 
 clearscreen.
 CLEARVECDRAWS().
@@ -92,7 +92,7 @@ until runmode = -1 {
   //             Green, "", 1, true,5).
       //Wheel Throttle:
       SET targetspeed TO targetspeed + 0.1 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
-      SET targetspeed TO max(-1, min( speedlimit, targetspeed)).
+      SET targetspeed TO max(-1, targetspeed).
       set upvec to up:vector.
       set velvec to ship:velocity:surface:normalized.
       set dp to vdot(velvec,upvec).
@@ -116,13 +116,10 @@ until runmode = -1 {
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
         if pangle > 5 AND runmode = 0 {          //
           SET runmode TO 2.
-          SET lastSpeedLimit TO speedlimit.
-          SET lastTargetSpeed TO targetspeed.
-          SET speedlimit TO 1.
+          set_speed(1).
         } else if runmode = 2 AND pangle < 5 {
           SET runmode TO 0.
-          SET speedlimit TO lastSpeedLimit.
-          SET targetspeed TO lastTargetSpeed.
+          restore_speed().
         }
         if angle < -10 AND runmode <> 4 {
           SET runmode TO 4.
@@ -132,17 +129,14 @@ until runmode = -1 {
         if runmode = 4
         {
           if MAX(nextWaypointHeading,-1*nextWaypointHeading) < 2 {
-            SET speedlimit TO lastSpeedLimit.
-            SET targetspeed TO lastTargetSpeed.
+            restore_speed().
           }
           if __grid:DISTANCE < 40 AND brakesOn = false {
             SET brakesOn TO true.
-            SET speedlimit TO 0.
             SET targetspeed TO 0.
           }
           if GROUNDSPEED < 0.1 {
             SET brakesOn TO true.
-            SET speedlimit TO 0.
             SET targetspeed TO 0.
             LOCAL backupRoute IS route.
             LOCAL newGoal IS LATLNG(route[rwaypoint+1][0]:LAT,route[rwaypoint+1][0]:LNG).
@@ -154,7 +148,6 @@ until runmode = -1 {
             SET route TO backupRoute.
             start_navigation().
             SET targetspeed TO 3.
-            SET speedlimit TO 3.
             SET runmode TO 1.
           }
         }
@@ -163,14 +156,11 @@ until runmode = -1 {
         SET nextWaypointHeading TO route[rwaypoint+1][0]:HEADING - cHeading.
         if __grid:DISTANCE < 50 AND MAX(nextWaypointHeading,-1*nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
           SET runmode TO 1.
-          SET lastSpeedLimit TO speedlimit.
-          SET lastTargetSpeed TO targetspeed.
-          SET speedlimit TO 3.
+          set_speed(3).
         }
         if runmode = 3 {
           if route[rwaypoint-1][0]:DISTANCE > 30 OR headingDifference <= 2 {
-            SET speedlimit TO lastSpeedLimit.
-            SET targetspeed TO lastTargetSpeed.
+            restore_speed().
             SET runmode TO 0.
           }
         }
@@ -300,15 +290,11 @@ until runmode = -1 {
         start_navigation().
       }
       ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR {
-        set speedlimit to speedlimit + 0.5.
-        SET targetspeed TO speedlimit.
-        SET lastSpeedLimit TO speedlimit.
+        SET targetspeed TO targetspeed + 0.5.
         SET lasttargetspeed TO targetspeed.
         }
       ELSE if K = TERMINAL:INPUT:PAGEDOWNCURSOR {
-        set speedlimit to speedlimit - 0.5.
-        SET targetspeed TO speedlimit.
-        SET lastSpeedLimit TO speedlimit.
+        SET targetspeed TO targetspeed - 0.5.
         SET lastTargetSpeed TO targetspeed.
       }
       ELSE IF K = TERMINAL:INPUT:HOMECURSOR {
@@ -322,6 +308,15 @@ until runmode = -1 {
       ELSE IF K = "i" OR K = "I" {
         navpoints:ADD(__goal).
         waypoint_marker().
+      }
+      ELSE IF K = "w" OR K = "W" {
+        LOCAL WPS IS ALLWAYPOINTS().
+        SET runmode TO 10.
+        FOR WP IN WPS {
+          IF WP:BODY = BODY:NAME {
+            contractWayPoints:ADD(WP).
+          }
+        }
       }
       ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
@@ -340,8 +335,7 @@ until runmode = -1 {
 
 
     PRINT "Target Speed:   " + ROUND( targetspeed, 1) + "        " AT (2, 3).
-    PRINT "Speed Limit:    " + ROUND( speedlimit, 1) + "        " AT (2, 4).
-    PRINT "Surface Speed:  " + ROUND( GROUNDSPEED, 1) + "        " AT (2, 5).
+    PRINT "Surface Speed:  " + ROUND( GROUNDSPEED, 1) + "        " AT (2, 4).
 
     PRINT "Pilot Throttle: " + ROUND( SHIP:CONTROL:PILOTWHEELTHROTTLE, 2) + "        " AT (2, 7).
     PRINT "Kommanded tVAL: " + ROUND( wtVAL, 2) + "        " AT (2, 8).
@@ -399,7 +393,17 @@ until runmode = -1 {
       LOCK targetHeading TO __grid:HEADING.
       BRAKES OFF.
       SET AG1 TO TRUE.
-      SET targetspeed TO speedlimit.
-      SET lastSpeedLimit TO speedlimit.
-      SET lasttargetspeed TO targetspeed.
+      restore_speed().
+    }
+
+    FUNCTION set_speed
+    {
+      PARAMETER spd.
+      SET lastTargetSpeed TO targetspeed.
+      SET targetspeed TO spd.
+    }
+
+    FUNCTION restore_speed
+    {
+      SET targetspeed TO lastTargetSpeed.
     }

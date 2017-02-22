@@ -1,22 +1,21 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
-SET len to 100.                    // Size of the graph
-SET sindex TO 25.                  // Starting Y position in the graph
-SET gindex TO CEILING((len-1)/2). //  Grid reference for the center of the graph which is the goal
+//  Grid reference for the center of the graph which is the goal
 
 SET start TO SHIP:GEOPOSITION.              // Get starting POSITION
 if input1 = "LATLNG" {
   SET goal TO LATLNG(input2:LAT,input2:LNG).
-  SET gDist TO MAX(45,CEILING((goal:DISTANCE*1.2)/100)).
-  SET len TO gDist * 2.
-  SET sindex TO FLOOR(len/5).
-  SET gindex TO gDist.
 } else if input = "WAYPOINT" {
   SET wp TO WAYPOINT(input2).
   SET goal TO wp:GEOPOSITION.
 } else {
   SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
 }
+
+SET len TO MAX(50,MIN(200,CEILING((goal:DISTANCE/100)*3))).
+SET gDist TO CEILING(goal:DISTANCE/(len/3)).
+SET gindex TO CEILING((len-1)/2).
+SET sindex TO gindex - FLOOR(goal:DISTANCE/gDist).
 
 CLEARSCREEN.
 PRINT "Initializing".
@@ -56,15 +55,13 @@ SET vex TO LIST().
 place_marker(start,red,5).
 place_marker(goal,green,100,1000).
 
-SET route TO astar(LIST(sindex,gindex),LIST(gindex,gindex)).
-if route:LENGTH <> 0 {
-  CLEARVECDRAWS().
-  SET route TO navigation_points(route).
-} else {
-  PRINT "Route can not be found".
+SET route TO astar(sindex,gindex).
+CLEARVECDRAWS().
+if route:LENGTH = 0 {
+  PRINT "---{  Route can not be found  }---" AT (2,2).
 }
-SET TERMINAL:WIDTH TO 30.
-SET TERMINAL:HEIGHT TO 40.
+SET TERMINAL:WIDTH TO 50.
+SET TERMINAL:HEIGHT TO 60.
 
 
 //    /**
@@ -74,7 +71,7 @@ SET TERMINAL:HEIGHT TO 40.
 //    **/
 
 FUNCTION astar {
-  PARAMETER start, goal.
+  PARAMETER sindex, gindex.
   // Estimate the Heuristic cost of getting to the goal.
   SET estimated_heuristic TO heuristic_cost_est(LIST(sindex,gindex),gindex).
 
@@ -144,7 +141,7 @@ FUNCTION get_neighbours {
         if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
           if openset:HASKEY(neighbour) = FALSE {
             openset:ADD(neighbour,TRUE).
-          } else if tentative_gscore >= currentfscore {
+          } else if tentative_gscore >= currentgscore {
             //  This is not a better path.  Do nothing.
           }
           SET camefrom[neighbour] TO current.
@@ -207,12 +204,10 @@ FUNCTION test_neighbour{
   if angle > -5 AND angle < 15 AND grid:TERRAINHEIGHT >= 0 {
       PRINT "." AT (gridx,gridy).
       place_marker(grid,yellow,5,100,round(angle),0.05).
-      // os:ADD(LIST(chk,gridy, gridx,_fscore)).
       SET setlist TO 1.
   } else if grid:TERRAINHEIGHT < 0 {
     PRINT "!" AT (gridx,gridy).
     place_marker(grid,red,5,100,round(angle),0.05).
-    // cs:ADD(LIST(chk,gridy, gridx,_fscore)).
     SET setlist TO 2.
   } else {
     if angle <= -5 {
@@ -292,23 +287,12 @@ FUNCTION place_marker {
 
 function construct_route {
   LOCAL current is LIST(gindex,gindex).
-  LOCAL totalpath IS LIST(current).
+  LOCAL totalpath IS LIST(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
   WHILE camefrom:HASKEY(current) {
     SET current TO camefrom[current[0]+","+current[1]].
     PRINT "*" AT (current[1],current[0]).
     place_marker(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"]),yellow,1,100,"",30).
-    totalpath:ADD(LIST(current[0],current[1])).
+    totalpath:INSERT(0,LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
   }
   return totalpath.
-}
-
-FUNCTION navigation_points {
-  PARAMETER path.
-  LOCAL points IS LIST().
-  FOR p in path {
-    if p:LENGTH = 2 {
-      points:INSERT(0,LIST(LATLNG(map[p[0]+","+p[1]]["LAT"],map[p[0]+","+p[1]]["LNG"]))).
-    }
-  }
-  return points.
 }

@@ -1,5 +1,7 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
+LOCAL runmode IS 0.
+
 //  Grid reference for the center of the graph which is the goal
 
 SET start TO SHIP:GEOPOSITION.              // Get starting POSITION
@@ -74,7 +76,7 @@ FUNCTION astar {
   PARAMETER sindex, gindex.
   // Estimate the Heuristic cost of getting to the goal.
   SET estimated_heuristic TO heuristic_cost_est(LIST(sindex,gindex),gindex).
-
+  SET current TO LIST(sindex,gindex).
 
   // Add starting position to open list
   openset:ADD(sindex+","+gindex,TRUE).
@@ -88,33 +90,66 @@ FUNCTION astar {
 
   PRINT "G" AT (gindex,gindex).
 
-  until openset:LENGTH = 0 {
+  until openset:LENGTH = 0 OR runmode = -1 {
+
+    IF TERMINAL:INPUT:HASCHAR {
+      SET K TO TERMINAL:INPUT:GETCHAR().
+      IF K = TERMINAL:INPUT:ENDCURSOR {
+        SET runmode TO -1.
+        CLEARVECDRAWS().
+        map:CLEAR.  // Node list
+        openset:CLEAR. // Open Set
+        closedset:CLEAR. // Closed Set
+        fscorelist:CLEAR.// fscore list
+        fscore:CLEAR.
+        gscore:CLEAR.
+        camefrom:CLEAR.
+      }
+    }
 
     LOCAL fscores IS fscorelist:KEYS.
     LOCAL localfscore IS len*len.
     LOCAL delscore IS "".
     FOR score in fscores {
-      if score > localfscore {
-        LOCAL scorekey IS fscorelist[score]:KEYS.
-        LOCAL current IS fscorelist[score][scorekey[0]].
-        SET delscore TO scorekey[0]
-        SET localfscore TO score.
+      if score < localfscore {
+        LOCAL scorekey TO fscorelist[score]:KEYS.
+        if closedset:HASKEY(fscorelist[score][scorekey[0]]) = FALSE {
+          SET current TO fscorelist[score][scorekey[0]].
+          SET delscore TO scorekey[0].
+          SET localfscore TO score.
+        } else {
+          fscorelist[score]:REMOVE(scorekey[0]).
+        }
       }
     }
-
     fscorelist[localfscore]:REMOVE(delscore).
-
-    PRINT "Grid       : " + current[0]+":"+current[1] AT (5,64).
-    PRINT "Open Set   : " + os:LENGTH AT (5,65).
-    PRINT "Closed Set : " + cs:LENGTH AT (5,66).
-
-    if current[0] = gindex and current[1] = gindex {
-      return construct_route().
-      BREAK.
+    if fscorelist[localfscore]:LENGTH = 0 {
+      fscorelist:REMOVE(localfscore).
     }
-    openset:REMOVE(current[0]+","+current[1]).
-    closedset:ADD(current[0]+","+current[1],TRUE).
-    get_neighbours(current,gscore[current[0]+","+current[1]]).
+
+    if closedset:HASKEY(current[0]+","+current[1]) = FALSE {
+
+      PRINT "Grid       : " + current[0]+":"+current[1] AT (5,64).
+      PRINT "Open Set   : " + openset:LENGTH AT (5,65).
+      PRINT "Closed Set : " + closedset:LENGTH AT (5,66).
+      PRINT "fScore     : " + localfscore + "   " AT (5,67).
+      PRINT "                                              " AT (5,68).
+      PRINT "Came From   : " + camefrom:LENGTH AT (5,69).
+
+      PRINT fscores AT (2,70).
+      PRINT openset:KEYS AT (2,80).
+
+      if current[0] = gindex and current[1] = gindex {
+        return construct_route().
+        BREAK.
+      }
+      openset:REMOVE(current[0]+","+current[1]).
+      closedset:ADD(current[0]+","+current[1],TRUE).
+      get_neighbours(current,gscore[current[0]+","+current[1]]).
+    } else {
+      PRINT current[0]+","+current[1]+" is in closed list" AT (5,68).
+      openset:REMOVE(current[0]+","+current[1]).
+    }
   }
   return LIST().
 }
@@ -126,7 +161,7 @@ FUNCTION get_neighbours {
   LOCAL scount IS 0.    //  Counter for neighbours with bad slopes
 
       //  Work through the neighbour list starting directly ahead and working around clockwise.
-  FOR ne IN nf {
+  FOR ne IN neighbourlist {
     // if scount = 0 {
     LOCAL gridy IS current[0] + ne[0].
     LOCAL gridx IS current[1] + ne[1].
@@ -135,7 +170,7 @@ FUNCTION get_neighbours {
     if closedset:HASKEY(neighbour) {
       // Continue and do nothing
     } else {
-      if test_neighbour(current,ne) {
+      if test_neighbour(current,ne,LIST(gridx,gridy)) {
         LOCAL tentative_gscore IS gscore[current[0]+","+current[1]] + 1.
           //  We don't want to fall off the grid!
         if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
@@ -159,25 +194,25 @@ FUNCTION get_neighbours {
       } else {
         SET scount TO scount + 1.
       }
-    }
-    //  If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
-    if scount = 3 {
-      openset:REMOVE(current[0]+","+current[1]).
-      closedset:ADD(current[0]+","+current[1],TRUE).
-      PRINT "!" AT (current[1],current[0]).
-      SET current TO camefrom[current[0]+","+current[1]].
-      BREAK.
+      //  If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
+      // if scount = 3 {
+      //   PRINT "!" AT (current[1],current[0]).
+      //   // openset:REMOVE(current[0]+","+current[1]).
+      //   // closedset:ADD(current[0]+","+current[1],TRUE).
+      //   // SET current TO camefrom[current[0]+","+current[1]].
+      //   BREAK.
+      // }
     }
   }
 }
 
 FUNCTION test_neighbour{
-  PARAMATER current, ne.
+  PARAMETER current, ne, printat.
 
   // This bit is nasty!  It took me more than a few hours to balance it right and the ne[0] bit is a hack and a half but it works.
   LOCAL offsetx IS 0.
   LOCAL offsety IS 0.
-  LOCAL node IS map[current[0]+","+current[1]]
+  LOCAL node IS map[current[0]+","+current[1]].
   LOCAL _grid IS LATLNG(node["LAT"],node["LNG"]).
   if ne[0] <> 0 {
     if ne[1] = 0 {
@@ -201,24 +236,24 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  if angle > -5 AND angle < 15 AND grid:TERRAINHEIGHT >= 0 {
-      PRINT "." AT (gridx,gridy).
+  if angle > -10 AND angle < 15 AND grid:TERRAINHEIGHT >= 0 {
+      PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
   } else if grid:TERRAINHEIGHT < 0 {
-    PRINT "!" AT (gridx,gridy).
+    PRINT "!" AT (printat[0],printat[1]).
     place_marker(grid,red,5,100,round(angle),0.05).
     SET setlist TO 2.
   } else {
-    if angle <= -5 {
-      PRINT "v" AT (gridx, gridy).
+    if angle <= -10 {
+      PRINT "v" AT (printat[0],printat[1]).
     } else {
-      PRINT "^" AT (gridx, gridy).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+      PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
     }
   }
   // Update the graph with what we've discovered about this cell.
 
-  SET map[gridy+","+gridx] TO LEXICON(
+  SET map[printat[1]+","+printat[0]] TO LEXICON(
     "LAT",grid:LAT,
     "LNG",grid:LNG,
     "TERRAINHEIGHT",grid:TERRAINHEIGHT,
@@ -288,11 +323,13 @@ FUNCTION place_marker {
 function construct_route {
   LOCAL current is LIST(gindex,gindex).
   LOCAL totalpath IS LIST(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
-  WHILE camefrom:HASKEY(current) {
+  UNTIL camefrom:HASKEY(current) = FALSE {
     SET current TO camefrom[current[0]+","+current[1]].
     PRINT "*" AT (current[1],current[0]).
     place_marker(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"]),yellow,1,100,"",30).
     totalpath:INSERT(0,LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
   }
+  CLEARSCREEN.
+  PRINT totalpath.
   return totalpath.
 }

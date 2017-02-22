@@ -1,4 +1,4 @@
-+ spc AT// rover.ks
+// rover.ks
 // Original direction and speed routines written by KK4TEE
 // Updated with waypoint management by aidygus
 // License: GPLv3
@@ -10,9 +10,9 @@
 
 PARAMETER debug IS true.
 
-lock turnlimit to min(1, 0.2 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
+lock turnlimit to min(1, 0.1 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
                    //turning radius based on __current speed
-SET TERMINAL:WIDTH TO 30.
+SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
 SET const_gravity TO BODY:mu / BODY:RADIUS ^ 2.
 SET looptime TO 0.01.
@@ -28,7 +28,7 @@ SET NORTHPOLE TO lATlng( 90, 0). //Reference heading
 SET AG9 TO FALSE.
 SET lockcounter TO 0.
 SET nextWaypointHeading TO 0.
-SET spc TO "            ".
+SET spc TO "      ".
 
 set overSpeedDownSlopeBrakeTime to 0.3.
 set extremeSlopeAngle to 8.
@@ -66,6 +66,7 @@ SET runmode TO 0.
     //    6 Attempting to move round obstacle.
 
     //    10 Select Waypoint
+    //    11 Do Science
 
 LOCK __current TO SHIP:GEOPOSITION.
 SET __goal TO SHIP:GEOPOSITION.
@@ -74,6 +75,7 @@ nav_marker().
 SET route TO LIST().
 SET rwaypoint TO -1.
 
+display_HUD().
 until runmode = -1 {
   //UpdATe the compass:
   // I want the heading TO mATch the navball
@@ -112,12 +114,18 @@ until runmode = -1 {
         SET angle TO ARCSIN(heightdiff/distance).
         SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
         SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
-        PRINT round(angle) + spc AT (20,30).
-        PRINT round(pangle) + spc AT (20,31).
+        PRINT round(angle) + spc AT (20,29).
+        PRINT round(pangle) + spc AT (20,30).
 
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
-        if pangle > 5 AND runmode = 0 {          //
+        IF GROUNDSPEED < 0.1 AND targetspeed <> 0 AND (TIME:SECONDS - lastEvent) > 20 {
+          SET runmode to 5.
+          SET targetspeed TO -1.
+          SET lastEvent TO TIME:SECONDS.
+          LOCK targetHeading TO (__grid:HEADING - 90).
+        }
+        ELSE if pangle > 5 AND runmode = 0 {          //
           SET runmode TO 2.
           set_speed(1).
         } else if runmode = 2 AND pangle < 5 {
@@ -142,7 +150,7 @@ until runmode = -1 {
             SET brakesOn TO true.
             SET targetspeed TO 0.
             LOCAL backupRoute IS route.
-            LOCAL newGoal IS LATLNG(route[rwaypoint+1][0]:LAT,route[rwaypoint+1][0]:LNG).
+            LOCAL newGoal IS LATLNG(route[rwaypoint+1]:LAT,route[rwaypoint+1]:LNG).
             RUNPATH("/asrover/astar","LATLNG",newGoal,false).
             FROM { LOCAL c IS route:LENGTH - 1. } until c = 1 STEP {SET c TO c-1. } DO {
               backupRoute:INSERT(rwaypoint,route[c]).
@@ -153,7 +161,7 @@ until runmode = -1 {
             SET runmode TO 1.
           }
         }
-        SET headingDifference TO route[rwaypoint][0]:HEADING - cHeading.
+        SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
         SET headingDifference TO MAX(headingDifference,-1*headingDifference).
         SET nextWaypointHeading TO route[rwaypoint+1][0]:HEADING - cHeading.
         if __grid:DISTANCE < 50 AND MAX(nextWaypointHeading,-1*nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
@@ -166,11 +174,11 @@ until runmode = -1 {
             SET runmode TO 0.
           }
         }
-        if route[rwaypoint][0]:DISTANCE < 20 {
+        if route[rwaypoint]:DISTANCE < stopDistance {
           SET rwaypoint TO rwaypoint + 1.
           if rwaypoint < route:LENGTH {
-            SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
-            // LOCK WHEELSTEERING TO route[rwaypoint][0].
+            SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
+            // LOCK WHEELSTEERING TO route[rwaypoint].
             LOCK targetHeading TO __grid:HEADING.
             SET runmode TO 3.
           }
@@ -218,7 +226,7 @@ until runmode = -1 {
       }
       ELSE IF runmode = 5 {
         SET eWheelThrottle TO targetspeed - GROUNDSPEED.
-        SET iWheelThrottle TO min( -1, max( 1, iWheelThrottle +
+        SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
                                             (looptime * eWheelThrottle))).
         SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
       }
@@ -226,12 +234,6 @@ until runmode = -1 {
         SET wtVAL TO SHIP:CONTROL:PILOTWHEELTHROTTLE.
         SET targetspeed TO 0. //Manual reverse throttle
         SET iWheelThrottle TO 0.
-      }
-      ELSE IF GROUNDSPEED < 0.1 AND targetspeed <> 0 {
-        SET runmode to 5.
-        SET targetspeed TO -1.
-        SET lastEvent TO TIME:SECONDS.
-        LOCK targetHeading TO (__grid:HEADING - 90).
       }
       ELSE { // IF value IS out of range or zero, stop.
         SET wtVAL TO 0.
@@ -283,9 +285,8 @@ until runmode = -1 {
 
     //Handle User Input using action groups
     IF TERMINAL:INPUT:HASCHAR {
-      PRINT "                      " AT (2,TERMINAL:HEIGHT).
       SET K TO TERMINAL:INPUT:GETCHAR().
-      SET N TO K:TONUMBER(FALSE).
+      SET N TO K:TONUMBER(-99).
       IF K = TERMINAL:INPUT:UPCURSORONE {
         SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
         nav_marker().
@@ -304,13 +305,13 @@ until runmode = -1 {
       }
       ELSE IF K = TERMINAL:INPUT:RETURN {
         if navpoints:LENGTH = 0 {
-          RUNPATH("/asrover/astar","LATLNG",__goal,false).
+          RUNPATH("/asrover/astar2","LATLNG",__goal,false).
         } else {
-          RUNPATH("/asrover/astar","LATLNG",navpoints[0],false).
+          RUNPATH("/asrover/astar2","LATLNG",navpoints[0],false).
           navpoints:REMOVE(0).
         }
         start_navigation().
-        PRINT "  ---{   Navigating to LAT " + round(__goal:LAT,1) +" : LNG " + round(__goal:LNG,1) "   }---" AT (0,1).
+        PRINT "  ---{   Navigating to LAT " + round(__goal:LAT,1) +" : LNG " + round(__goal:LNG,1) +  "   }---" AT (0,1).
       }
       ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR {
         SET targetspeed TO targetspeed + 0.5.
@@ -337,19 +338,21 @@ until runmode = -1 {
         LOCAL WPS IS ALLWAYPOINTS().
         SET runmode TO 10.
         FOR WP IN WPS {
-          IF WP:BODY = BODY:NAME {
+          IF WP:BODY:NAME = BODY:NAME {
             contractWayPoints:ADD(WP).
           }
         }
       }
       ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
-      } ELSE IF N <> FALSE {
-        if N < contractWayPoints:LENGTH {
+        CLEARVECDRAWS().
+      } ELSE IF N <> -99 {
+        if N <= contractWayPoints:LENGTH {
           SET runmode TO 0.
-          RUNPATH("/asrover/astar","WAYPOINT",contractWayPoints[N-1]:NAME,false).
+          LOCAL w IS contractWayPoints[N-1].
+          RUNPATH("/asrover/astar2","WAYPOINT",w:NAME,false).
           start_navigation().
-          PRINT "  ---{   Navigating to " + contractWayPoints[N-1]:NAME +"   }---" AT (0,1).
+          PRINT "  ---{   Navigating to " + w:NAME +"   }---" AT (0,1).
         }
       } ELSE {
         PRINT "# UNKNOWN COMMAND # " AT (2,TERMINAL:HEIGHT - 2).
@@ -372,16 +375,14 @@ until runmode = -1 {
       FOR c IN contractWayPoints {
         PRINT "(" + y + ") " + c:NAME +"      " AT (4,y+4).
         LOCAL p IS c:GEOPOSITION.
-        PRINT round((p:DISTANCE/1000),2) + " km" AT (25,y+4).
+        PRINT " " + round((p:DISTANCE/1000),2) + " km" AT (25,y+4).
         LOCAL y IS y+1.
       }
     } else {
-      PRINT ROUND( targetspeed, 1) \+ spc AT (20, 3).
-      PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 4).
+      PRINT ROUND( targetspeed, 1) + spc AT (20, 6).
+      PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 7).
 
-      PRINT ROUND( SHIP:CONTROL:PILOTWHEELTHROTTLE, 2) + spc AT (20, 7).
-      PRINT ROUND( wtVAL, 2) + spc AT (20, 8).
-      PRINT ROUND( SHIP:CONTROL:PILOTWHEELSTEER, 2) + spc AT (20, 9).
+      PRINT ROUND( wtVAL, 2) + spc AT (20, 9).
       PRINT ROUND( kTurn, 2) + spc AT (20, 10).
 
       PRINT ROUND( targetheading, 2) + spc AT (20, 12).
@@ -397,7 +398,7 @@ until runmode = -1 {
       PRINT ROUND(WTVAL,2) + spc AT (20 ,21).
 
       IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
-        PRINT round(MAX(route[rwaypoint+1][0]:HEADING, -1*route[rwaypoint+1][0]:HEADING)) + spc AT (20, 24).
+        PRINT round(MAX(route[rwaypoint+1]:HEADING, -1*route[rwaypoint+1]:HEADING)) + spc AT (20, 24).
         PRINT round(nextWaypointHeading) + spc AT (20,25).
       }
       PRINT round(currentSlopeAngle,2) + spc AT (20,28).
@@ -413,13 +414,11 @@ until runmode = -1 {
     }
 
     FUNCTION display_HUD {
-      PRINT "Target Speed    :" AT (2,3).
-      PRINT "Surface Speed   :" AT (2,4).
+      PRINT "Target Speed    :" AT (2,6).
+      PRINT "Surface Speed   :" AT (2,7).
 
-      PRINT "Pilot Throttle  :" AT (2,7).
-      PRINT "Kommanded tVAL  :" (2,8).
-      PRINT "Pilot Turn      :" AT (2,9).
-      PRINT "Kommanded Turn  :" AT (2,10).
+      PRINT "Commanded tVAL  :" AT (2,9).
+      PRINT "Commanded Turn  :" AT (2,10).
       PRINT "Target Heading  :" AT (2,12).
       PRINT "CurrentHeading  :" AT (2,13).
       PRINT "Cruise Control  :" AT (2,14).
@@ -460,14 +459,17 @@ until runmode = -1 {
 
     FUNCTION start_navigation
     {
+      SET TERMINAL:WIDTH TO 50.
+      SET TERMINAL:HEIGHT TO 40.
       CLEARSCREEN.
       display_HUD().
       SET rwaypoint TO 0.
-      SET __grid TO LATLNG(route[rwaypoint][0]:LAT,route[rwaypoint][0]:LNG).
+      SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
       LOCK targetHeading TO __grid:HEADING.
       BRAKES OFF.
       SET AG1 TO TRUE.
       restore_speed().
+      SET lastEvent TO TIME:SECONDS.
     }
 
     FUNCTION set_speed

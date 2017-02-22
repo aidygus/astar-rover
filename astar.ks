@@ -11,7 +11,7 @@ if input1 = "LATLNG" {
   SET len TO gDist * 2.
   SET sindex TO FLOOR(len/5).
   SET gindex TO gDist.
-} else if input = "WAYPOINT" {
+} else if input1 = "WAYPOINT" {
   SET wp TO WAYPOINT(input2).
   SET goal TO wp:GEOPOSITION.
 } else {
@@ -73,8 +73,6 @@ if route:LENGTH <> 0 {
 } else {
   PRINT "Route can not be found".
 }
-SET TERMINAL:WIDTH TO 30.
-SET TERMINAL:HEIGHT TO 40.
 
 
 //    /**
@@ -157,7 +155,7 @@ FUNCTION get_neighbours {
               LOCAL setlist TO 0.
               LOCAL distance IS (grid:POSITION-node[2]:POSITION):MAG.
               LOCAL angle IS ARCSIN(heightdiff/distance).
-              if angle > -5 AND angle < 15 AND grid:TERRAINHEIGHT >= 0 {
+              if angle > -12 AND angle < 25 AND grid:TERRAINHEIGHT > -1 {
                   PRINT "." AT (gridx,gridy).
                   place_marker(grid,yellow,5,100,round(angle),0.05).
                   os:ADD(LIST(chk,gridy, gridx,_fscore)).

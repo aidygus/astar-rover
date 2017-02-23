@@ -74,8 +74,8 @@ FUNCTION astar {
   // Add starting position to open list
   openset:ADD(sindex+","+gindex,TRUE).
 
-  SET map[sindex+","+gindex] TO LEXICON("LAT",start:LAT,"LNG",start:LNG,"TERRAINHEIGHT",start:TERRAINHEIGHT,"POSITION",start:POSITION).
-  SET map[gindex+","+gindex] TO LEXICON("LAT",goal:LAT,"LNG",goal:LNG,"TERRAINHEIGHT",goal:TERRAINHEIGHT,"POSITION",goal:POSITION).
+  SET map[sindex+","+gindex] TO LEXICON("LAT",start:LAT,"LNG",start:LNG,"TERRAINHEIGHT",start:TERRAINHEIGHT,"POSITION",start:POSITION,"FSCORE",estimated_heuristic).
+  SET map[gindex+","+gindex] TO LEXICON("LAT",goal:LAT,"LNG",goal:LNG,"TERRAINHEIGHT",goal:TERRAINHEIGHT,"POSITION",goal:POSITION,"FSCORE",0).
 
   SET gscore[sindex+","+gindex] TO 0.
   SET fscorelist[estimated_heuristic] TO LEXICON(sindex+","+gindex,LIST(sindex,gindex)).
@@ -84,29 +84,27 @@ FUNCTION astar {
 
   until openset:LENGTH = 0 OR asrunmode = -1 {
 
-    if closedset:HASKEY(current[0]+","+current[1]) = FALSE {
-      LOCAL fscores IS fscorelist:KEYS.
-      LOCAL localfscore IS len*len.
-      LOCAL delscore IS "".
+    LOCAL fscores IS fscorelist:KEYS.
+    LOCAL localfscore IS len*len.
+    LOCAL delscore IS "".
 
-      FOR score in fscores {
-        if score < localfscore {
-          LOCAL scorekey TO fscorelist[score]:KEYS.
-          if closedset:HASKEY(fscorelist[score][scorekey[0]]) = FALSE {
-            SET current TO fscorelist[score][scorekey[0]].
-            SET delscore TO scorekey[0].
-            SET localfscore TO score.
-          } else {
-            fscorelist[score]:REMOVE(scorekey[0]).
-          }
+    FOR score in fscores {
+      if fscorelist[score]:LENGTH = 0 {
+        fscorelist:REMOVE(score).
+      } else if score < localfscore {
+        LOCAL scorekey TO fscorelist[score]:KEYS.
+        if closedset:HASKEY(scorekey[0]) = FALSE {
+          SET current TO fscorelist[score][scorekey[0]].
+          SET delscore TO scorekey[0].
+          SET localfscore TO score.
+        } else {
+          fscorelist[score]:REMOVE(scorekey[0]).
         }
       }
-      fscorelist[localfscore]:REMOVE(delscore).
-      if fscorelist[localfscore]:LENGTH = 0 {
-        fscorelist:REMOVE(localfscore).
-      }
-
-      PRINT "S" AT (sindex,gindex).
+    }
+    fscorelist[localfscore]:REMOVE(delscore).
+    if closedset:HASKEY(current[0]+","+current[1]) = FALSE {
+      PRINT "S" AT (gindex,sindex).
       PRINT "G" AT (gindex,gindex).
       PRINT "Grid       : " + current[0]+":"+current[1] AT (5,64).
       PRINT "Open Set   : " + openset:LENGTH AT (5,65).
@@ -115,7 +113,7 @@ FUNCTION astar {
       PRINT "Map size   : " + map:LENGTH + "   " AT (5,68).
       PRINT "                                              " AT (5,70).
 
-      WRITEJSON(camefrom,"0:/camefrom.json").
+      // WRITEJSON(camefrom,"0:/camefrom.json").
       if current[0] = gindex and current[1] = gindex {
         return construct_route().
         BREAK.
@@ -169,7 +167,7 @@ FUNCTION get_neighbours {
           SET camefrom[neighbour] TO current.
           SET gscore[neighbour] TO tentative_gscore.
           SET fscore[neighbour] TO gscore[neighbour] + heuristic_cost_est(LIST(gridy,gridx),gindex).
-
+          SET map[neighbour]["FSCORE"] TO fscore[neighbour].
 
           if fscorelist:HASKEY(fscore[neighbour]) {
             if fscorelist[fscore[neighbour]]:HASKEY(neighbour) = FALSE {
@@ -224,7 +222,7 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  if angle > -25 AND angle < 30 AND grid:TERRAINHEIGHT >= 0 {
+  if angle > -15 AND angle < 20 AND grid:TERRAINHEIGHT >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
@@ -245,7 +243,8 @@ FUNCTION test_neighbour{
     "LAT",grid:LAT,
     "LNG",grid:LNG,
     "TERRAINHEIGHT",grid:TERRAINHEIGHT,
-    "POSITION",grid:POSITION
+    "POSITION",grid:POSITION,
+    "FSCORE",0
   ).
   if setlist = 1 {
     return TRUE.

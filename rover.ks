@@ -65,7 +65,7 @@ SET runmode TO 9.
     //    4  Very Steep Slope ahead.  Find alternative route.
     //    5  Has hit an obstacle.
     //    6  Attempting to move round obstacle.
-    
+
     //    9  Display Menu
     //    10 Select Waypoint
     //    11 Do Science
@@ -109,8 +109,8 @@ until runmode = -1 {
 
       if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint+1 < route:LENGTH {
         // IF runmode = 0 { //Govern the rover
-        LOCAL predicted1 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,sISpDistance+5))).
-        LOCAL predicted2 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,sISpDistance+5)+1)).
+        LOCAL predicted1 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5))).
+        LOCAL predicted2 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5)+1)).
         LOCAL heightdiff IS predicted2:TERRAINHEIGHT - predicted1:TERRAINHEIGHT.
         LOCAL distance IS (predicted1:POSITION - predicted2:POSITION):MAG.
         SET angle TO ARCSIN(heightdiff/distance).
@@ -370,16 +370,16 @@ until runmode = -1 {
       PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 7).
       PRINT round(__goal:DISTANCE) + spc AT (20, 8).
 
-      PRINT ROUND( targetheading, 2) + spc AT (20, 12).
-      PRINT ROUND( cheading, 2) + spc AT (20, 13).
+      PRINT ROUND( targetheading, 2) + spc AT (20, 10).
+      PRINT ROUND( cheading, 2) + spc AT (20, 11).
 
       IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
-        PRINT round(MAX(route[rwaypoint+1]:HEADING, -1*route[rwaypoint+1]:HEADING)) + spc AT (20, 14).
-        PRINT round(nextWaypointHeading) + spc AT (20,15).
+        PRINT round(MAX(route[rwaypoint+1]:HEADING, -1*route[rwaypoint+1]:HEADING)) + spc AT (20, 12).
+        PRINT round(nextWaypointHeading) + spc AT (20,13).
       }
-      PRINT ROUND(__grid:DISTANCE, 2) + spc AT (20, 16).
-      PRINT route:LENGTH + spc AT (20, 17).
-      PRINT rwaypoint + spc AT (20, 18).
+      PRINT ROUND(__grid:DISTANCE, 2) + spc AT (20, 15).
+      PRINT route:LENGTH + spc AT (20, 16).
+      PRINT rwaypoint + spc AT (20, 17).
 
       PRINT round(currentSlopeAngle,2) + spc AT (20,20).
 
@@ -405,14 +405,14 @@ until runmode = -1 {
       PRINT "Surface Speed   :" AT (2,7).
       PRINT "Distance to goal:" AT (2,8).
 
-      PRINT "Target Heading  :" AT (2,12).
-      PRINT "CurrentHeading  :" AT (2,13).
-      PRINT "  Next Heading  :" AT (2,14).
-      PRINT "  Next Bearing  :" AT (2,15).
+      PRINT "Target Heading  :" AT (2,10).
+      PRINT "CurrentHeading  :" AT (2,11).
+      PRINT "  Next Heading  :" AT (2,12).
+      PRINT "  Next Bearing  :" AT (2,13).
 
-      PRINT "Waypoint Dist   :"  AT (2,16).
-      PRINT "Waypoints       :" AT (2,17).
-      PRINT "Current WP      :" AT (2,18).
+      PRINT "Waypoint Dist   :"  AT (2,15).
+      PRINT "Waypoints       :" AT (2,16).
+      PRINT "Current WP      :" AT (2,17).
 
       PRINT "Current Angle   :" AT (2,20).
       PRINT "Predicted Angle :" AT (2,21).
@@ -433,7 +433,7 @@ until runmode = -1 {
     }
 
     FUNCTION nav_marker {
-      LOCAL vg IS VECDRAWARGS(
+      SET vg TO VECDRAWARGS(
                   __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
                   __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
                   Green, "", 1, true,50).

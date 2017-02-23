@@ -289,9 +289,9 @@ until runmode = -1 {
       }
       ELSE IF K = TERMINAL:INPUT:RETURN {
         if navpoints:LENGTH = 0 {
-          RUNPATH("/asrover/astar2","LATLNG",__goal,false).
+          RUNPATH("/asrover/astar","LATLNG",__goal,false).
         } else {
-          RUNPATH("/asrover/astar2","LATLNG",navpoints[0],false).
+          RUNPATH("/asrover/astar","LATLNG",navpoints[0],false).
           navpoints:REMOVE(0).
         }
         start_navigation().
@@ -337,7 +337,7 @@ until runmode = -1 {
         if N <= contractWayPoints:LENGTH {
           SET runmode TO 0.
           LOCAL w IS contractWayPoints[N-1].
-          RUNPATH("/asrover/astar2","WAYPOINT",w:NAME,false).
+          RUNPATH("/asrover/astar","WAYPOINT",w:NAME,false).
           start_navigation().
           PRINT "  ---{   Navigating to " + w:NAME +"   }---" AT (0,1).
         }

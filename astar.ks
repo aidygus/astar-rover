@@ -1,22 +1,25 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
-SET len to 100.                    // Size of the graph
-SET sindex TO 25.                  // Starting Y position in the graph
-SET gindex TO CEILING((len-1)/2). //  Grid reference for the center of the graph which is the goal
+LOCAL asrunmode IS 0.
 
-SET start TO SHIP:GEOPOSITION.              // Get starting POSITION
+LOCAL goal IS "".
+LOCAL wp IS "".
+
+LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
+
 if input1 = "LATLNG" {
   SET goal TO LATLNG(input2:LAT,input2:LNG).
-  SET gDist TO MAX(45,CEILING((goal:DISTANCE*1.2)/100)).
-  SET len TO gDist * 2.
-  SET sindex TO FLOOR(len/5).
-  SET gindex TO gDist.
 } else if input1 = "WAYPOINT" {
   SET wp TO WAYPOINT(input2).
   SET goal TO wp:GEOPOSITION.
 } else {
   SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
 }
+
+LOCAL len IS MAX(50,MIN(200,CEILING((goal:DISTANCE/100)*3))).
+LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
+LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
+LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
 
 CLEARSCREEN.
 PRINT "Initializing".
@@ -26,180 +29,226 @@ SET TERMINAL:WIDTH TO len + 10.
 SET TERMINAL:HEIGHT TO len + 10.
 
 
-SET n to LIST().  // Template list for rows
-SET l to LIST().  // Node list
-SET os TO LIST(). // Open Set
-SET cs TO LIST(). // Closed Set
-SET nf TO LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
+LOCAL map IS LEXICON().  // Node list
+LOCAL openset IS LEXICON(). // Open Set
+LOCAL closedset IS LEXICON(). // Closed Set
+LOCAL fscorelist IS LEXICON().// fscore list
+LOCAL fscore IS LEXICON().
+LOCAL gscore IS LEXICON().
+LOCAL camefrom IS LEXICON().
+LOCAL neighbourlist IS LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
 
-// Create a list describing the grid
-
-FROM {local x is 0.} UNTIL x = len STEP {set x to x+1.} DO {
-  n:ADD(LIST(999999999,0,0,0,0,LIST())).
-}
-FROM {local x is 0.} UNTIL x = len STEP {set x to x+1.} DO {
-  l:ADD(n:COPY).
-}
-
-
-
-SET latdist TO (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
-SET lngdist TO (goal:LNG-start:LNG) / (gindex-sindex).
+LOCAL latdist IS (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
+LOCAL lngdist IS (goal:LNG-start:LNG) / (gindex-sindex).
 
 CLEARSCREEN.
 CLEARVECDRAWS().
-SET vex TO LIST().
+LOCAL vex IS LIST().
 
 place_marker(start,red,5).
 place_marker(goal,green,100,1000).
 
-// Estimate the Heuristic cost of getting to the goal.
-SET esth TO heuristic_cost_est(LIST(sindex,gindex),gindex).
-
-// gscore, fscore, lat/lan, height, list and origin
-// List memberships is 0 (none), 1 (open set), 2(closed set)
-SET l[sindex][gindex] TO LIST(0,esth,start,start:TERRAINHEIGHT,0,LIST()).
-SET l[gindex][gindex] TO LIST(esth,0,goal,goal:TERRAINHEIGHT,0,LIST()).
-
-// Add starting position to open list
-os:ADD(LIST(sindex+","+gindex,sindex,gindex,esth)).
-PRINT "G" AT (gindex,gindex).
-
-
-SET route TO get_neighbours(LIST(sindex,gindex)).
-if route:LENGTH <> 0 {
-  CLEARVECDRAWS().
-  SET route TO navigation_points(route).
-} else {
-  PRINT "Route can not be found".
+GLOBAL route IS astar(sindex,gindex).
+CLEARVECDRAWS().
+clear_down().
+if route:LENGTH = 0 {
+  PRINT "---{  Route can not be found  }---" AT (2,1).
 }
+SET TERMINAL:WIDTH TO 50.
+SET TERMINAL:HEIGHT TO 40.
 
 
 //    /**
-//    @current LIST coordinates of the starting cell in the graph
+//    @sindex coordinates of the starting x cell in the graph
+//    @gindex coordinates of the y call which is in the middle of the graph and location of the goal on both x and y.
 //
-//    @return LIST/Boolean  Either returns a constructed list of the discovered route or false if no valid route can be found.
+//    @return LIST  returns a constructed list of the discovered route or empty if none is found.
 //    **/
 
-FUNCTION get_neighbours {
-  PARAMETER current.
-  until os:LENGTH = 0 {
-    PRINT "Grid       : " + current[0]+":"+current[1] AT (5,64).
-    PRINT "Open Set   : " + os:LENGTH AT (5,65).
-    PRINT "Closed Set : " + cs:LENGTH AT (5,66).
-    LOCAL fs IS 9999999.
-    LOCAL index IS -1.
+FUNCTION astar {
+  PARAMETER sindex, gindex.
+  // Estimate the Heuristic cost of getting to the goal.
+  LOCAL estimated_heuristic IS heuristic_cost_est(LIST(sindex,gindex),gindex).
+  LOCAL current IS LIST(sindex,gindex).
 
-    // Try to find an entry in the open list with the lowest fscore.
-    FROM {local x is 0.} UNTIL x = os:LENGTH STEP {set x to x+1.} DO {
-      if os[x][3] < fs {
-        SET current TO LIST(os[x][1],os[x][2]).
-        SET fs TO l[os[x][1]][os[x][2]][1].
-        SET index TO x.
-      }
-    }
-    print "fScore     : " + fs at (5,67).
-    SET l[current[0]][current[1]][4] TO 2.
-    cs:ADD(os[index]).
-    os:REMOVE(index).
+  // Add starting position to open list
+  openset:ADD(sindex+","+gindex,TRUE).
 
-    // Are we there yet?
-    if current[0] = gindex and current[1] = gindex {
-      return construct_route().
-      BREAK.
-    }
-      LOCAL node IS l[current[0]][current[1]].
-      LOCAL scount IS 0.    //  Counter for neighbours with bad slopes
+  SET map[sindex+","+gindex] TO LEXICON("LAT",start:LAT,"LNG",start:LNG,"TERRAINHEIGHT",start:TERRAINHEIGHT,"POSITION",start:POSITION,"FSCORE",estimated_heuristic).
+  SET map[gindex+","+gindex] TO LEXICON("LAT",goal:LAT,"LNG",goal:LNG,"TERRAINHEIGHT",goal:TERRAINHEIGHT,"POSITION",goal:POSITION,"FSCORE",0).
 
-      //  Work through the neighbour list starting directly ahead and working around clockwise.
-      FOR ne IN nf {
-        if scount = 0 {
-          LOCAL gridy IS current[0] + ne[0].
-          LOCAL gridx IS current[1] + ne[1].
-          LOCAL gsc IS 0.
-          LOCAL _fscore IS 99999999.
-          LOCAL chk IS "".
-          // LOCAL validated IS false.
-          //  We don't want to fall off the grid!
-          if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
-            SET chk TO gridy + "," + gridx.
-            if l[gridy][gridx][4] = 0 {
+  SET gscore[sindex+","+gindex] TO 0.
+  SET fscorelist[estimated_heuristic] TO LEXICON(sindex+","+gindex,LIST(sindex,gindex)).
+  SET fscore[sindex+","+gindex] TO estimated_heuristic.
 
-              SET gsc TO node[0]+1.
-              SET _fscore TO heuristic_cost_est(LIST(gridy,gridx),gindex).
 
-              // This bit is nasty!  It took me more than a few hours to balance it right and the ne[0] bit is a hack and a half but it works.
+  until openset:LENGTH = 0 OR asrunmode = -1 {
 
-              LOCAL offsetx IS 0.
-              LOCAL offsety IS 0.
-              LOCAL _grid IS LATLNG(node[2]:LAT,node[2]:LNG).
-              if ne[0] <> 0 {
-                if ne[1] = 0 {
-                  SET offsety TO (ne[0]*latdist)/2.
-                  SET offsetx TO (ne[0]*lngdist)/2.
-                } else {
-                  SET offsety TO (ne[0]*latdist).
-                  SET offsetx TO (ne[0]*lngdist).
-                }
-                SET _grid TO LATLNG(node[2]:LAT+offsety,node[2]:LNG+offsetx).
-              }
-              if ne[1] <> 0 {
-                SET offsety TO (ne[1]*lngdist).
-                SET offsetx TO -(ne[1]*latdist).
-              }
+    LOCAL fscores IS fscorelist:KEYS.
+    LOCAL localfscore IS len*len.
+    LOCAL delscore IS "".
 
-              LOCAL grid IS LATLNG(_grid:LAT+offsety,_grid:LNG+offsetx).
-              LOCAL heightdiff IS grid:TERRAINHEIGHT-node[3].
-
-              //  We want to avoid trying to drive up or down cliffs and especially taking a dip if we can help it
-              LOCAL setlist TO 0.
-              LOCAL distance IS (grid:POSITION-node[2]:POSITION):MAG.
-              LOCAL angle IS ARCSIN(heightdiff/distance).
-              if angle > -12 AND angle < 25 AND grid:TERRAINHEIGHT > -1 {
-                  PRINT "." AT (gridx,gridy).
-                  place_marker(grid,yellow,5,100,round(angle),0.05).
-                  os:ADD(LIST(chk,gridy, gridx,_fscore)).
-                  SET setlist TO 1.
-              } else if grid:TERRAINHEIGHT < 0 {
-                PRINT "!" AT (gridx,gridy).
-                place_marker(grid,red,5,100,round(angle),0.05).
-                cs:ADD(LIST(chk,gridy, gridx,_fscore)).
-                SET setlist TO 2.
-              } else {
-                SET scount TO scount + 1.
-                if angle <= -5 {
-                  PRINT "v" AT (gridx, gridy).
-                } else {
-                  PRINT "^" AT (gridx, gridy).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
-                }
-              }
-              // Update the graph with what we've discovered about this cell.
-              if setlist <> 0 {
-                SET l[gridy][gridx] TO LIST(
-                  gsc,
-                  _fscore,
-                  grid,
-                  grid:TERRAINHEIGHT,
-                  setlist,
-                  current
-                ).
-              }
-          }
-        }
-        //  If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
-        if scount = 3 {
-          PRINT "!" AT (current[1],current[0]).
-          SET l[current[0]][current[1]][4] TO 2.
-          LOCAL d IS l[current[0]][current[1]][5].
-          SET l[current[0]][current[1]][5] TO LIST().
-          SET current TO d.
+    FOR score in fscores {
+      if fscorelist[score]:LENGTH = 0 {
+        fscorelist:REMOVE(score).
+      } else if score < localfscore {
+        LOCAL scorekey TO fscorelist[score]:KEYS.
+        if closedset:HASKEY(scorekey[0]) = FALSE {
+          SET current TO fscorelist[score][scorekey[0]].
+          SET delscore TO scorekey[0].
+          SET localfscore TO score.
+        } else {
+          fscorelist[score]:REMOVE(scorekey[0]).
         }
       }
-      if os:LENGTH = 0 {
-        return LIST().
+    }
+    fscorelist[localfscore]:REMOVE(delscore).
+    if closedset:HASKEY(current[0]+","+current[1]) = FALSE {
+      PRINT "S" AT (gindex,sindex).
+      PRINT "G" AT (gindex,gindex).
+      PRINT "Grid       : " + current[0]+":"+current[1] AT (5,64).
+      PRINT "Open Set   : " + openset:LENGTH AT (5,65).
+      PRINT "Closed Set : " + closedset:LENGTH AT (5,66).
+      PRINT "fScore     : " + localfscore + "   " AT (5,67).
+      PRINT "Map size   : " + map:LENGTH + "   " AT (5,68).
+      PRINT "                                              " AT (5,70).
+
+      // WRITEJSON(camefrom,"0:/camefrom.json").
+      if current[0] = gindex and current[1] = gindex {
+        return construct_route().
+        BREAK.
+      }
+      openset:REMOVE(current[0]+","+current[1]).
+      closedset:ADD(current[0]+","+current[1],TRUE).
+      get_neighbours(current,gscore[current[0]+","+current[1]]).
+    } else {
+      PRINT current[0]+","+current[1]+" is in closed list" AT (5,70).
+      openset:REMOVE(current[0]+","+current[1]).
+    }
+
+    IF TERMINAL:INPUT:HASCHAR {
+      LOCAL K IS TERMINAL:INPUT:GETCHAR().
+      IF K = TERMINAL:INPUT:ENDCURSOR {
+        SET asrunmode TO -1.
       }
     }
   }
+  return LIST().
+}
+
+
+
+FUNCTION get_neighbours {
+  PARAMETER current,currentgscore.
+
+  LOCAL node IS map[current[0]+","+current[1]].
+  LOCAL scount IS 0.    //  Counter for neighbours with bad slopes
+
+      //  Work through the neighbour list starting directly ahead and working around clockwise.
+  FOR ne IN neighbourlist {
+    // if scount = 0 {
+    LOCAL gridy IS current[0] + ne[0].
+    LOCAL gridx IS current[1] + ne[1].
+    LOCAL neighbour IS gridy+","+gridx.
+
+    if closedset:HASKEY(neighbour) {
+      // Continue and do nothing
+    } else {
+      if test_neighbour(current,ne,LIST(gridx,gridy)) {
+        LOCAL tentative_gscore IS gscore[current[0]+","+current[1]] + 1.
+          //  We don't want to fall off the grid!
+        if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
+          if openset:HASKEY(neighbour) = FALSE {
+            openset:ADD(neighbour,TRUE).
+          } else if tentative_gscore >= currentgscore {
+            //  This is not a better path.  Do nothing.
+          }
+
+          SET camefrom[neighbour] TO current.
+          SET gscore[neighbour] TO tentative_gscore.
+          SET fscore[neighbour] TO gscore[neighbour] + heuristic_cost_est(LIST(gridy,gridx),gindex).
+          SET map[neighbour]["FSCORE"] TO fscore[neighbour].
+
+          if fscorelist:HASKEY(fscore[neighbour]) {
+            if fscorelist[fscore[neighbour]]:HASKEY(neighbour) = FALSE {
+              fscorelist[fscore[neighbour]]:ADD(neighbour,LIST(gridy,gridx)).
+            }
+          } else {
+            fscorelist:ADD(fscore[neighbour],LEXICON(neighbour,LIST(gridy,gridx))).
+          }
+        }
+      } else {
+        SET scount TO scount + 1.
+      }
+      // If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
+      if scount = 3 {
+        PRINT "!" AT (current[1],current[0]).
+        BREAK.
+      }
+    }
+  }
+}
+
+FUNCTION test_neighbour{
+  PARAMETER current, ne, printat.
+
+  // This bit is nasty!  It took me more than a few hours to balance it right and the ne[0] bit is a hack and a half but it works.
+  LOCAL offsetx IS 0.
+  LOCAL offsety IS 0.
+  LOCAL node IS map[current[0]+","+current[1]].
+  LOCAL _grid IS LATLNG(node["LAT"],node["LNG"]).
+  if ne[0] <> 0 {
+    if ne[1] = 0 {
+      SET offsety TO (ne[0]*latdist)/2.
+      SET offsetx TO (ne[0]*lngdist)/2.
+    } else {
+      SET offsety TO (ne[0]*latdist).
+      SET offsetx TO (ne[0]*lngdist).
+    }
+  }
+  SET _grid TO LATLNG(node["LAT"]+offsety,node["LNG"]+offsetx).
+  if ne[1] <> 0 {
+    SET offsety TO (ne[1]*lngdist).
+    SET offsetx TO -(ne[1]*latdist).
+  }
+
+  LOCAL grid IS LATLNG(_grid:LAT+offsety,_grid:LNG+offsetx).
+  LOCAL heightdiff IS grid:TERRAINHEIGHT-node["TERRAINHEIGHT"].
+
+  //  We want to avoid trying to drive up or down cliffs and especially taking a dip if we can help it
+  LOCAL setlist TO 0.
+  LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
+  LOCAL angle IS ARCSIN(heightdiff/distance).
+  if angle > -15 AND angle < 20 AND grid:TERRAINHEIGHT >= 0 {
+      PRINT "." AT (printat[0],printat[1]).
+      place_marker(grid,yellow,5,100,round(angle),0.05).
+      SET setlist TO 1.
+  } else if grid:TERRAINHEIGHT < 0 {
+    PRINT "!" AT (printat[0],printat[1]).
+    place_marker(grid,red,5,100,round(angle),0.05).
+    SET setlist TO 2.
+  } else {
+    if angle <= -25 {
+      PRINT "v" AT (printat[0],printat[1]).
+    } else {
+      PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+    }
+  }
+  // Update the graph with what we've discovered about this cell.
+
+  SET map[printat[1]+","+printat[0]] TO LEXICON(
+    "LAT",grid:LAT,
+    "LNG",grid:LNG,
+    "TERRAINHEIGHT",grid:TERRAINHEIGHT,
+    "POSITION",grid:POSITION,
+    "FSCORE",0
+  ).
+  if setlist = 1 {
+    return TRUE.
+  } else {
+    return FALSE.
+  }
+
 }
 
 // /**
@@ -256,27 +305,30 @@ FUNCTION place_marker {
 //  **/
 
 function construct_route {
-  LOCAL path IS LIST(List(gindex,gindex)).
-  LOCAL current is l[gindex][gindex][5].
-  path:ADD(current).
-  UNTIL current:LENGTH = 0 {
-    if current:LENGTH <> 0 {
-      PRINT "*" AT (current[1],current[0]).
-      place_marker(l[current[0]][current[1]][2],yellow,1,100,"",30).
-      SET current TO l[current[0]][current[1]][5].
-      path:ADD(current).
-    }
+  LOCAL current is LIST(gindex,gindex).
+  LOCAL totalpath IS LIST(
+          LATLNG(
+            map[current[0]+","+current[1]]["LAT"],
+            map[current[0]+","+current[1]]["LNG"]
+          )
+        ).
+  UNTIL camefrom:HASKEY(current[0]+","+current[1]) = FALSE {
+    SET current TO camefrom[current[0]+","+current[1]].
+    PRINT "*" AT (current[1],current[0]).
+    place_marker(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"]),yellow,1,100,"",30).
+    totalpath:INSERT(0,LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
   }
-  return path.
+  CLEARSCREEN.
+  return totalpath.
 }
 
-FUNCTION navigation_points {
-  PARAMETER path.
-  LOCAL points IS LIST().
-  FOR p in path {
-    if p:LENGTH = 2 {
-      points:INSERT(0,LIST(l[p[0]][p[1]][2])).
-    }
-  }
-  return points.
+FUNCTION clear_down {
+  CLEARVECDRAWS().
+  map:CLEAR.  // Node list
+  openset:CLEAR. // Open Set
+  closedset:CLEAR. // Closed Set
+  fscorelist:CLEAR.// fscore list
+  fscore:CLEAR.
+  gscore:CLEAR.
+  camefrom:CLEAR.
 }

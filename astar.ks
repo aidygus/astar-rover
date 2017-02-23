@@ -102,7 +102,9 @@ FUNCTION astar {
         }
       }
     }
-    fscorelist[localfscore]:REMOVE(delscore).
+    if fscorelist:HASKEY(localfscore) {
+      fscorelist[localfscore]:REMOVE(delscore).
+    }
     if closedset:HASKEY(current[0]+","+current[1]) = FALSE {
       PRINT "S" AT (gindex,sindex).
       PRINT "G" AT (gindex,gindex).
@@ -219,7 +221,7 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  if angle > -15 AND angle < 20 AND grid:TERRAINHEIGHT >= 0 {
+  if angle > -18 AND angle < 25 AND grid:TERRAINHEIGHT >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.

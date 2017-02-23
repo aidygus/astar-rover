@@ -117,7 +117,7 @@ until runmode = -1 {
         SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
         SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
         PRINT round(angle) + spc AT (20,21).
-        PRINT round(pangle) + spc AT (20,23).
+        PRINT round(pangle) + spc AT (20,22).
 
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
@@ -141,16 +141,17 @@ until runmode = -1 {
         //   LOCK targetHeading TO __grid:HEADING.
         }
 
-        IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(SHIP) = FALSE AND runmode <> 12 {
+        IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE AND runmode <> 12 {
           SET runmode to 12.
           set_speed(0).
           BRAKES ON.
           SET brakesOn TO TRUE.
-        } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(SHIP) AND runmode = 12 {
+        } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) AND runmode = 12 {
           SET runmode TO 0.
           if route:LENGTH <> 0 {
             restore_speed().
             SET brakesOn TO FALSE.
+            SET WARP TO 0.
           }
         }
 
@@ -163,7 +164,11 @@ until runmode = -1 {
         SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
         if __grid:DISTANCE < 50 AND MAX(nextWaypointHeading,-1*nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
           SET runmode TO 1.
-          set_speed(3).
+          if MAX(nextWaypointHeading,-1*nextWaypointHeading) > 40 {
+            set_speed(1).
+          } else {
+            set_speed(3).
+          }
         }
         if runmode = 3 {
           if route[rwaypoint-1]:DISTANCE > 30 AND headingDifference < 2 {
@@ -338,6 +343,7 @@ until runmode = -1 {
           SET runmode TO 0.
           LOCAL w IS contractWayPoints[N-1].
           RUNPATH("/asrover/astar","WAYPOINT",w:NAME,false).
+          SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
           start_navigation().
           PRINT "  ---{   Navigating to " + w:NAME +"   }---" AT (0,1).
         }
@@ -393,11 +399,12 @@ until runmode = -1 {
       PRINT ROUND( kTurn, 2) + spc AT (20, 31).
 
       PRINT ROUND(eWheelThrottle,2)  AT ( 6, 33).
-      PRINT ROUND(iWheelThrottle,2) AT (14,33).
+      PRINT ROUND(iWheelThrottle,2) AT (16,33).
       PRINT ROUND(WTVAL,2) + spc AT (20 ,34).
     }
     SET looptime TO TIME:SECONDS - loopEndTime.
     SET loopEndTime TO TIME:SECONDS.
+    WAIT 0.
     }
 
     FUNCTION display_HUD {
@@ -417,7 +424,7 @@ until runmode = -1 {
       PRINT "Current Angle   :" AT (2,20).
       PRINT "Predicted Angle :" AT (2,21).
 
-      PRINT "Difference      :" AT (2,23).
+      PRINT "Difference      :" AT (2,22).
       PRINT "Stopping Dist   :" AT (2,24).
       PRINT "Gradient        :" AT (2,25).
 
@@ -428,8 +435,8 @@ until runmode = -1 {
       PRINT "Commanded Turn  :" AT (2,31).
 
       PRINT "E:" AT ( 2, 33).
-      PRINT "I:" AT (10,33).
-      PRINT "WTVAL " AT (2 ,35).
+      PRINT "I:" AT (12,33).
+      PRINT "WTVAL " AT (2 ,34).
     }
 
     FUNCTION nav_marker {

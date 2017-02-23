@@ -65,6 +65,7 @@ SET runmode TO 9.
     //    4  Very Steep Slope ahead.  Find alternative route.
     //    5  Has hit an obstacle.
     //    6  Attempting to move round obstacle.
+    
     //    9  Display Menu
     //    10 Select Waypoint
     //    11 Do Science
@@ -104,15 +105,14 @@ until runmode = -1 {
       set dp to vdot(velvec,upvec).
       set currentSlopeAngle to 90 - arccos(dp).
 
-
       SET facvec TO SHIP:FACING.
 
       if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint+1 < route:LENGTH {
         // IF runmode = 0 { //Govern the rover
-        set predicted1 TO body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5))).
-        set predicted2 TO body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5)+1)).
-        SET heightdiff TO predicted2:TERRAINHEIGHT - predicted1:TERRAINHEIGHT.
-        SET distance TO (predicted1:POSITION - predicted2:POSITION):MAG.
+        LOCAL predicted1 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,sISpDistance+5))).
+        LOCAL predicted2 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,sISpDistance+5)+1)).
+        LOCAL heightdiff IS predicted2:TERRAINHEIGHT - predicted1:TERRAINHEIGHT.
+        LOCAL distance IS (predicted1:POSITION - predicted2:POSITION):MAG.
         SET angle TO ARCSIN(heightdiff/distance).
         SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
         SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
@@ -134,18 +134,19 @@ until runmode = -1 {
           SET runmode TO 0.
           restore_speed().
         }
-        // if angle < -35 AND runmode <> 4 {
+        if angle < -25 AND runmode <> 4 {
+          set_speed(2).
         //   SET runmode TO 4.
         //   SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
         //   LOCK targetHeading TO __grid:HEADING.
-        // }
+        }
 
-        IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(VESSEL) = FALSE AND runmode <> 12 {
+        IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(SHIP) = FALSE AND runmode <> 12 {
           SET runmode to 12.
           set_speed(0).
           BRAKES ON.
           SET brakesOn TO TRUE.
-        } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(VESSEL) AND runmode = 12 {
+        } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(SHIP) AND runmode = 12 {
           SET runmode TO 0.
           if route:LENGTH <> 0 {
             restore_speed().
@@ -153,31 +154,11 @@ until runmode = -1 {
           }
         }
 
-        if runmode = 4
+        if runmode = 4 AND angle > -15
         {
-          if MAX(nextWaypointHeading,-1*nextWaypointHeading) < 2 {
             restore_speed().
-          }
-          if __grid:DISTANCE < 40 AND brakesOn = false {
-            SET brakesOn TO true.
-            SET targetspeed TO 0.
-          }
-          if GROUNDSPEED < 0.1 {
-            SET brakesOn TO true.
-            SET targetspeed TO 0.
-            LOCAL backupRoute IS route.
-            LOCAL newGoal IS LATLNG(route[rwaypoint+1]:LAT,route[rwaypoint+1]:LNG).
-            RUNPATH("/asrover/astar2","LATLNG",newGoal,false).
-            FROM { LOCAL c IS route:LENGTH - 1. } until c = 1 STEP {SET c TO c-1. } DO {
-              backupRoute:INSERT(rwaypoint,route[c]).
-            }
-            SET route TO backupRoute.
-            start_navigation().
-            SET targetspeed TO 3.
-            SET runmode TO 1.
-          }
         }
-        SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
+        LOCAL headingDifference IS route[rwaypoint]:HEADING - cHeading.
         SET headingDifference TO MAX(headingDifference,-1*headingDifference).
         SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
         if __grid:DISTANCE < 50 AND MAX(nextWaypointHeading,-1*nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
@@ -185,12 +166,12 @@ until runmode = -1 {
           set_speed(3).
         }
         if runmode = 3 {
-          if route[rwaypoint-1]:DISTANCE > 30 AND headingDifference <= 2 {
+          if route[rwaypoint-1]:DISTANCE > 30 AND headingDifference < 2 {
             restore_speed().
             SET runmode TO 0.
           }
         }
-        if route[rwaypoint]:DISTANCE < stopDistance {
+        if route[rwaypoint]:DISTANCE < MAX(5,stopDistance) {
           next_waypoint().
         }
         if runmode = 5 AND (TIME:SECONDS - lastEvent) > 20 {
@@ -288,8 +269,8 @@ until runmode = -1 {
 
     //Handle User Input using action groups
     IF TERMINAL:INPUT:HASCHAR {
-      SET K TO TERMINAL:INPUT:GETCHAR().
-      SET N TO K:TONUMBER(-99).
+      LOCAL K IS TERMINAL:INPUT:GETCHAR().
+      LOCAL N IS K:TONUMBER(-99).
       IF K = TERMINAL:INPUT:UPCURSORONE {
         SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
         nav_marker().
@@ -452,7 +433,7 @@ until runmode = -1 {
     }
 
     FUNCTION nav_marker {
-      SET vg TO VECDRAWARGS(
+      LOCAL vg IS VECDRAWARGS(
                   __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
                   __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
                   Green, "", 1, true,50).

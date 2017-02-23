@@ -38,6 +38,8 @@ Managing the rover is done through Terminal Input commands these are :
 * w/W - Display list of contract waypoints on current body
 * 1-9 - Select contract waypoint in list
 
+* n/N - Navigate to next waypoint
+
 * Enter/return - Execute astar path finding algorythm to destination
 
 

@@ -1,10 +1,12 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
-LOCAL runmode IS 0.
+LOCAL asrunmode IS 0.
 
-//  Grid reference for the center of the graph which is the goal
+LOCAL goal IS "".
+LOCAL wp IS "".
 
-SET start TO SHIP:GEOPOSITION.              // Get starting POSITION
+LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
+
 if input1 = "LATLNG" {
   SET goal TO LATLNG(input2:LAT,input2:LNG).
 } else if input1 = "WAYPOINT" {
@@ -14,10 +16,10 @@ if input1 = "LATLNG" {
   SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
 }
 
-SET len TO MAX(50,MIN(200,CEILING((goal:DISTANCE/100)*3))).
-SET gDist TO CEILING(goal:DISTANCE/(len/3)).
-SET gindex TO CEILING((len-1)/2).
-SET sindex TO gindex - FLOOR(goal:DISTANCE/gDist).
+LOCAL len IS MAX(50,MIN(200,CEILING((goal:DISTANCE/100)*3))).
+LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
+LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
+LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
 
 CLEARSCREEN.
 PRINT "Initializing".
@@ -27,38 +29,38 @@ SET TERMINAL:WIDTH TO len + 10.
 SET TERMINAL:HEIGHT TO len + 10.
 
 
-SET map to LEXICON().  // Node list
-SET openset TO LEXICON(). // Open Set
-SET closedset TO LEXICON(). // Closed Set
-SET fscorelist TO LEXICON().// fscore list
-SET fscore TO LEXICON().
-SET gscore TO LEXICON().
-SET camefrom TO LEXICON().
-SET neighbourlist TO LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
+LOCAL map IS LEXICON().  // Node list
+LOCAL openset IS LEXICON(). // Open Set
+LOCAL closedset IS LEXICON(). // Closed Set
+LOCAL fscorelist IS LEXICON().// fscore list
+LOCAL fscore IS LEXICON().
+LOCAL gscore IS LEXICON().
+LOCAL camefrom IS LEXICON().
+LOCAL neighbourlist IS LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
 
-SET latdist TO (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
-SET lngdist TO (goal:LNG-start:LNG) / (gindex-sindex).
+LOCAL latdist IS (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
+LOCAL lngdist IS (goal:LNG-start:LNG) / (gindex-sindex).
 
 CLEARSCREEN.
 CLEARVECDRAWS().
-SET vex TO LIST().
+LOCAL vex IS LIST().
 
 place_marker(start,red,5).
 place_marker(goal,green,100,1000).
 
-SET route TO astar(sindex,gindex).
+GLOBAL route IS astar(sindex,gindex).
 CLEARVECDRAWS().
 clear_down().
 if route:LENGTH = 0 {
   PRINT "---{  Route can not be found  }---" AT (2,1).
 }
 SET TERMINAL:WIDTH TO 50.
-SET TERMINAL:HEIGHT TO 60.
+SET TERMINAL:HEIGHT TO 40.
 
 
 //    /**
-//    @sindex coordinates of the starting cell in the graph
-//    @gindex coordinates of the middle of the graph where the goal is
+//    @sindex coordinates of the starting x cell in the graph
+//    @gindex coordinates of the y call which is in the middle of the graph and location of the goal on both x and y.
 //
 //    @return LIST  returns a constructed list of the discovered route or empty if none is found.
 //    **/
@@ -66,8 +68,8 @@ SET TERMINAL:HEIGHT TO 60.
 FUNCTION astar {
   PARAMETER sindex, gindex.
   // Estimate the Heuristic cost of getting to the goal.
-  SET estimated_heuristic TO heuristic_cost_est(LIST(sindex,gindex),gindex).
-  SET current TO LIST(sindex,gindex).
+  LOCAL estimated_heuristic IS heuristic_cost_est(LIST(sindex,gindex),gindex).
+  LOCAL current IS LIST(sindex,gindex).
 
   // Add starting position to open list
   openset:ADD(sindex+","+gindex,TRUE).
@@ -79,45 +81,39 @@ FUNCTION astar {
   SET fscorelist[estimated_heuristic] TO LEXICON(sindex+","+gindex,LIST(sindex,gindex)).
   SET fscore[sindex+","+gindex] TO estimated_heuristic.
 
-  PRINT "G" AT (gindex,gindex).
 
-  until openset:LENGTH = 0 OR runmode = -1 {
-
-    IF TERMINAL:INPUT:HASCHAR {
-      SET K TO TERMINAL:INPUT:GETCHAR().
-      IF K = TERMINAL:INPUT:ENDCURSOR {
-        SET runmode TO -1.
-        clear_down().
-      }
-    }
-
-    LOCAL fscores IS fscorelist:KEYS.
-    LOCAL localfscore IS len*len.
-    LOCAL delscore IS "".
-    FOR score in fscores {
-      if score < localfscore {
-        LOCAL scorekey TO fscorelist[score]:KEYS.
-        if closedset:HASKEY(fscorelist[score][scorekey[0]]) = FALSE {
-          SET current TO fscorelist[score][scorekey[0]].
-          SET delscore TO scorekey[0].
-          SET localfscore TO score.
-        } else {
-          fscorelist[score]:REMOVE(scorekey[0]).
-        }
-      }
-    }
-    fscorelist[localfscore]:REMOVE(delscore).
-    if fscorelist[localfscore]:LENGTH = 0 {
-      fscorelist:REMOVE(localfscore).
-    }
+  until openset:LENGTH = 0 OR asrunmode = -1 {
 
     if closedset:HASKEY(current[0]+","+current[1]) = FALSE {
+      LOCAL fscores IS fscorelist:KEYS.
+      LOCAL localfscore IS len*len.
+      LOCAL delscore IS "".
 
+      FOR score in fscores {
+        if score < localfscore {
+          LOCAL scorekey TO fscorelist[score]:KEYS.
+          if closedset:HASKEY(fscorelist[score][scorekey[0]]) = FALSE {
+            SET current TO fscorelist[score][scorekey[0]].
+            SET delscore TO scorekey[0].
+            SET localfscore TO score.
+          } else {
+            fscorelist[score]:REMOVE(scorekey[0]).
+          }
+        }
+      }
+      fscorelist[localfscore]:REMOVE(delscore).
+      if fscorelist[localfscore]:LENGTH = 0 {
+        fscorelist:REMOVE(localfscore).
+      }
+
+      PRINT "S" AT (sindex,gindex).
+      PRINT "G" AT (gindex,gindex).
       PRINT "Grid       : " + current[0]+":"+current[1] AT (5,64).
       PRINT "Open Set   : " + openset:LENGTH AT (5,65).
       PRINT "Closed Set : " + closedset:LENGTH AT (5,66).
       PRINT "fScore     : " + localfscore + "   " AT (5,67).
-      PRINT "                                              " AT (5,69).
+      PRINT "Map size   : " + map:LENGTH + "   " AT (5,68).
+      PRINT "                                              " AT (5,70).
 
       WRITEJSON(camefrom,"0:/camefrom.json").
       if current[0] = gindex and current[1] = gindex {
@@ -128,8 +124,15 @@ FUNCTION astar {
       closedset:ADD(current[0]+","+current[1],TRUE).
       get_neighbours(current,gscore[current[0]+","+current[1]]).
     } else {
-      PRINT current[0]+","+current[1]+" is in closed list" AT (5,69).
+      PRINT current[0]+","+current[1]+" is in closed list" AT (5,70).
       openset:REMOVE(current[0]+","+current[1]).
+    }
+
+    IF TERMINAL:INPUT:HASCHAR {
+      LOCAL K IS TERMINAL:INPUT:GETCHAR().
+      IF K = TERMINAL:INPUT:ENDCURSOR {
+        SET asrunmode TO -1.
+      }
     }
   }
   return LIST().
@@ -307,7 +310,12 @@ FUNCTION place_marker {
 
 function construct_route {
   LOCAL current is LIST(gindex,gindex).
-  LOCAL totalpath IS LIST(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
+  LOCAL totalpath IS LIST(
+          LATLNG(
+            map[current[0]+","+current[1]]["LAT"],
+            map[current[0]+","+current[1]]["LNG"]
+          )
+        ).
   UNTIL camefrom:HASKEY(current[0]+","+current[1]) = FALSE {
     SET current TO camefrom[current[0]+","+current[1]].
     PRINT "*" AT (current[1],current[0]).

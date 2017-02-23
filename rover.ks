@@ -67,6 +67,7 @@ SET runmode TO 0.
 
     //    10 Select Waypoint
     //    11 Do Science
+    //    12 No Connection
 
 LOCK __current TO SHIP:GEOPOSITION.
 SET __goal TO SHIP:GEOPOSITION.
@@ -137,6 +138,20 @@ until runmode = -1 {
         //   SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
         //   LOCK targetHeading TO __grid:HEADING.
         // }
+
+        IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(VESSEL) = FALSE AND runmode <> 12 {
+          SET runmode to 12.
+          set_speed(0).
+          BRAKES ON.
+          SET brakesOn TO TRUE.
+        } else if runmode = 12 {
+          SET runmode TO 0.
+          if route:LENGTH <> 0 {
+            restore_speed().
+            SET brakesOn TO FALSE.
+          }
+        }
+
         if runmode = 4
         {
           if MAX(nextWaypointHeading,-1*nextWaypointHeading) < 2 {
@@ -163,25 +178,19 @@ until runmode = -1 {
         }
         SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
         SET headingDifference TO MAX(headingDifference,-1*headingDifference).
-        SET nextWaypointHeading TO route[rwaypoint+1][0]:HEADING - cHeading.
+        SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
         if __grid:DISTANCE < 50 AND MAX(nextWaypointHeading,-1*nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
           SET runmode TO 1.
           set_speed(3).
         }
         if runmode = 3 {
-          if route[rwaypoint-1][0]:DISTANCE > 30 OR headingDifference <= 2 {
+          if route[rwaypoint-1]:DISTANCE > 30 AND headingDifference <= 2 {
             restore_speed().
             SET runmode TO 0.
           }
         }
         if route[rwaypoint]:DISTANCE < stopDistance {
-          SET rwaypoint TO rwaypoint + 1.
-          if rwaypoint < route:LENGTH {
-            SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
-            // LOCK WHEELSTEERING TO route[rwaypoint].
-            LOCK targetHeading TO __grid:HEADING.
-            SET runmode TO 3.
-          }
+          next_waypoint().
         }
         if runmode = 5 AND (TIME:SECONDS - lastEvent) > 5 {
           SET runmode TO 6.
@@ -223,12 +232,6 @@ until runmode = -1 {
           //Safety adjustment TO help reduce roll-back AT low speeds
           SET wtVAL TO min( 1, max( -0.2, wtVAL)).
         }
-      }
-      ELSE IF runmode = 5 {
-        SET eWheelThrottle TO targetspeed - GROUNDSPEED.
-        SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
-                                            (looptime * eWheelThrottle))).
-        SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
       }
       ELSE IF targetspeed < 0 AND runmode = 0 { //ELSE IF we're going backwards
         SET wtVAL TO SHIP:CONTROL:PILOTWHEELTHROTTLE.
@@ -342,6 +345,9 @@ until runmode = -1 {
             contractWayPoints:ADD(WP).
           }
         }
+      }
+      ELSE IF K = "n" OR K = "N" {
+        next_waypoint().
       }
       ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
@@ -464,22 +470,38 @@ until runmode = -1 {
       CLEARSCREEN.
       display_HUD().
       SET rwaypoint TO 0.
-      SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
-      LOCK targetHeading TO __grid:HEADING.
-      BRAKES OFF.
-      SET AG1 TO TRUE.
-      restore_speed().
-      SET lastEvent TO TIME:SECONDS.
+      if route:LENGTH <> 0 {
+        SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
+        LOCK targetHeading TO __grid:HEADING.
+        BRAKES OFF.
+        LIGHTS ON.
+        SET AG1 TO TRUE.
+        restore_speed().
+        SET lastEvent TO TIME:SECONDS.
+      }
     }
 
     FUNCTION set_speed
     {
       PARAMETER spd.
-      SET lastTargetSpeed TO targetspeed.
-      SET targetspeed TO spd.
+      if spd < targetspeed {
+        SET lastTargetSpeed TO targetspeed.
+        SET targetspeed TO spd.
+      }
     }
 
     FUNCTION restore_speed
     {
       SET targetspeed TO lastTargetSpeed.
+    }
+
+    FUNCTION next_waypoint
+    {
+      SET rwaypoint TO rwaypoint + 1.
+      if rwaypoint < route:LENGTH {
+        SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
+        // LOCK WHEELSTEERING TO route[rwaypoint].
+        LOCK targetHeading TO __grid:HEADING.
+        SET runmode TO 3.
+      }
     }

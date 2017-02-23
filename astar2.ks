@@ -7,7 +7,7 @@ LOCAL runmode IS 0.
 SET start TO SHIP:GEOPOSITION.              // Get starting POSITION
 if input1 = "LATLNG" {
   SET goal TO LATLNG(input2:LAT,input2:LNG).
-} else if input = "WAYPOINT" {
+} else if input1 = "WAYPOINT" {
   SET wp TO WAYPOINT(input2).
   SET goal TO wp:GEOPOSITION.
 } else {
@@ -133,12 +133,9 @@ FUNCTION astar {
       PRINT "Open Set   : " + openset:LENGTH AT (5,65).
       PRINT "Closed Set : " + closedset:LENGTH AT (5,66).
       PRINT "fScore     : " + localfscore + "   " AT (5,67).
-      PRINT "                                              " AT (5,68).
-      PRINT "Came From   : " + camefrom:LENGTH AT (5,69).
+      PRINT "                                              " AT (5,69).
 
-      PRINT fscores AT (2,70).
-      PRINT openset:KEYS AT (2,80).
-
+      WRITEJSON(camefrom,"0:/camefrom.json").
       if current[0] = gindex and current[1] = gindex {
         return construct_route().
         BREAK.
@@ -147,7 +144,7 @@ FUNCTION astar {
       closedset:ADD(current[0]+","+current[1],TRUE).
       get_neighbours(current,gscore[current[0]+","+current[1]]).
     } else {
-      PRINT current[0]+","+current[1]+" is in closed list" AT (5,68).
+      PRINT current[0]+","+current[1]+" is in closed list" AT (5,69).
       openset:REMOVE(current[0]+","+current[1]).
     }
   }
@@ -179,9 +176,11 @@ FUNCTION get_neighbours {
           } else if tentative_gscore >= currentgscore {
             //  This is not a better path.  Do nothing.
           }
+
           SET camefrom[neighbour] TO current.
           SET gscore[neighbour] TO tentative_gscore.
           SET fscore[neighbour] TO gscore[neighbour] + heuristic_cost_est(LIST(gridy,gridx),gindex).
+
 
           if fscorelist:HASKEY(fscore[neighbour]) {
             if fscorelist[fscore[neighbour]]:HASKEY(neighbour) = FALSE {
@@ -194,14 +193,14 @@ FUNCTION get_neighbours {
       } else {
         SET scount TO scount + 1.
       }
-      //  If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
-      // if scount = 3 {
-      //   PRINT "!" AT (current[1],current[0]).
-      //   // openset:REMOVE(current[0]+","+current[1]).
-      //   // closedset:ADD(current[0]+","+current[1],TRUE).
-      //   // SET current TO camefrom[current[0]+","+current[1]].
-      //   BREAK.
-      // }
+      // If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
+      if scount = 3 {
+        PRINT "!" AT (current[1],current[0]).
+        // openset:REMOVE(current[0]+","+current[1]).
+        // closedset:ADD(current[0]+","+current[1],TRUE).
+        // SET current TO camefrom[current[0]+","+current[1]].
+        BREAK.
+      }
     }
   }
 }
@@ -236,7 +235,7 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  if angle > -10 AND angle < 15 AND grid:TERRAINHEIGHT >= 0 {
+  if angle > -25 AND angle < 30 AND grid:TERRAINHEIGHT >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
@@ -245,7 +244,7 @@ FUNCTION test_neighbour{
     place_marker(grid,red,5,100,round(angle),0.05).
     SET setlist TO 2.
   } else {
-    if angle <= -10 {
+    if angle <= -25 {
       PRINT "v" AT (printat[0],printat[1]).
     } else {
       PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
@@ -323,7 +322,7 @@ FUNCTION place_marker {
 function construct_route {
   LOCAL current is LIST(gindex,gindex).
   LOCAL totalpath IS LIST(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
-  UNTIL camefrom:HASKEY(current) = FALSE {
+  UNTIL camefrom:HASKEY(current[0]+","+current[1]) = FALSE {
     SET current TO camefrom[current[0]+","+current[1]].
     PRINT "*" AT (current[1],current[0]).
     place_marker(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"]),yellow,1,100,"",30).

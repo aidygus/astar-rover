@@ -36,7 +36,7 @@ set overSpeedCruise to 8.
 set extraBrakeTime to 0.7.
 set cruiseSpeedBrakeTime to 1.
 set currentSlopeAngle to 0.
-set brakesOn to false.
+set brakesOn to TRUE.
 set lastBrake to -1.
 set lastEvent TO -1.
 set brakeUseCount to 0.
@@ -53,18 +53,19 @@ CLEARVECDRAWS().
 sas off.
 rcs off.
 lights on.
+BRAKES ON.
 LOCK throttle TO 0.
 
-SET runmode TO 0.
+SET runmode TO 9.
     // Valid runmodes
-    //    0 Normal Operation
-    //    1 Approaching Waymarker
-    //    2 Change of slope angle ahead
-    //    3 Moving away from waypoint
-    //    4 Very Steep Slope ahead.  Find alternative route.
-    //    5 Has hit an obstacle.
-    //    6 Attempting to move round obstacle.
-
+    //    0  Normal Operation
+    //    1  Approaching Waymarker
+    //    2  Change of slope angle ahead
+    //    3  Moving away from waypoint
+    //    4  Very Steep Slope ahead.  Find alternative route.
+    //    5  Has hit an obstacle.
+    //    6  Attempting to move round obstacle.
+    //    9  Display Menu
     //    10 Select Waypoint
     //    11 Do Science
     //    12 No Connection
@@ -78,11 +79,11 @@ SET rwaypoint TO -1.
 
 display_HUD().
 until runmode = -1 {
-  //UpdATe the compass:
-  // I want the heading TO mATch the navball
+  //Update the compass:
+  // I want the heading TO match the navball
   // and be out of 360' instead of +/-180'
-  // I do thIS by judging the heading relATive
-  // TO a lATlng SET TO the north pole
+  // I do this by judging the heading relative
+  // TO a lAT/LNG SET TO the north pole
   IF northPole:bearing <= 0 {
       SET cHeading TO ABS(northPole:bearing).
       }
@@ -115,8 +116,8 @@ until runmode = -1 {
         SET angle TO ARCSIN(heightdiff/distance).
         SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
         SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
-        PRINT round(angle) + spc AT (20,29).
-        PRINT round(pangle) + spc AT (20,30).
+        PRINT round(angle) + spc AT (20,21).
+        PRINT round(pangle) + spc AT (20,23).
 
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
@@ -133,7 +134,7 @@ until runmode = -1 {
           SET runmode TO 0.
           restore_speed().
         }
-        // if angle < -10 AND runmode <> 4 {
+        // if angle < -35 AND runmode <> 4 {
         //   SET runmode TO 4.
         //   SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
         //   LOCK targetHeading TO __grid:HEADING.
@@ -144,7 +145,7 @@ until runmode = -1 {
           set_speed(0).
           BRAKES ON.
           SET brakesOn TO TRUE.
-        } else if runmode = 12 {
+        } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCONNECTION(VESSEL) AND runmode = 12 {
           SET runmode TO 0.
           if route:LENGTH <> 0 {
             restore_speed().
@@ -166,7 +167,7 @@ until runmode = -1 {
             SET targetspeed TO 0.
             LOCAL backupRoute IS route.
             LOCAL newGoal IS LATLNG(route[rwaypoint+1]:LAT,route[rwaypoint+1]:LNG).
-            RUNPATH("/asrover/astar","LATLNG",newGoal,false).
+            RUNPATH("/asrover/astar2","LATLNG",newGoal,false).
             FROM { LOCAL c IS route:LENGTH - 1. } until c = 1 STEP {SET c TO c-1. } DO {
               backupRoute:INSERT(rwaypoint,route[c]).
             }
@@ -192,14 +193,13 @@ until runmode = -1 {
         if route[rwaypoint]:DISTANCE < stopDistance {
           next_waypoint().
         }
-        if runmode = 5 AND (TIME:SECONDS - lastEvent) > 5 {
+        if runmode = 5 AND (TIME:SECONDS - lastEvent) > 20 {
           SET runmode TO 6.
           SET targetspeed TO 2.
           SET lastEvent TO TIME:SECONDS.
-        } else if runmode = 6 AND (TIME:SECONDS - lastEvent) > 10 {
+        } else if runmode = 6 AND (TIME:SECONDS - lastEvent) > 20 {
           LOCK targetHeading TO __grid:HEADING.
-          SET targetspeed TO 3.
-          SET runmode TO 2.
+          SET runmode TO 3.
         }
       } else {
         IF navpoints:LENGTH <> 0 AND rwaypoint <> -1{
@@ -212,7 +212,7 @@ until runmode = -1 {
           RUNPATH("/asrover/astar","LATLNG",gl,false).
           start_navigation().
         } else {
-          PRINT "  ---{   Rover has arrived at location  }---" + spc AT (0,1).
+          PRINT "---{   Rover has arrived at location  }---         " + spc AT (2,1).
           SET targetspeed TO 0.
           BRAKES ON.
           UNLOCK targetheading.
@@ -387,66 +387,68 @@ until runmode = -1 {
     } else {
       PRINT ROUND( targetspeed, 1) + spc AT (20, 6).
       PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 7).
-
-      PRINT ROUND( wtVAL, 2) + spc AT (20, 9).
-      PRINT ROUND( kTurn, 2) + spc AT (20, 10).
+      PRINT round(__goal:DISTANCE) + spc AT (20, 8).
 
       PRINT ROUND( targetheading, 2) + spc AT (20, 12).
       PRINT ROUND( cheading, 2) + spc AT (20, 13).
-      PRINT AG1 + "   " AT (20, 14).
 
+      IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
+        PRINT round(MAX(route[rwaypoint+1]:HEADING, -1*route[rwaypoint+1]:HEADING)) + spc AT (20, 14).
+        PRINT round(nextWaypointHeading) + spc AT (20,15).
+      }
       PRINT ROUND(__grid:DISTANCE, 2) + spc AT (20, 16).
       PRINT route:LENGTH + spc AT (20, 17).
       PRINT rwaypoint + spc AT (20, 18).
 
-      PRINT ROUND(eWheelThrottle,2)  AT ( 6, 20).
-      PRINT ROUND(iWheelThrottle,2) AT (14,20).
-      PRINT ROUND(WTVAL,2) + spc AT (20 ,21).
+      PRINT round(currentSlopeAngle,2) + spc AT (20,20).
 
-      IF DEFINED route AND route:LENGTH <> 0 AND rwaypoint <> route:LENGTH-1 {
-        PRINT round(MAX(route[rwaypoint+1]:HEADING, -1*route[rwaypoint+1]:HEADING)) + spc AT (20, 24).
-        PRINT round(nextWaypointHeading) + spc AT (20,25).
-      }
-      PRINT round(currentSlopeAngle,2) + spc AT (20,28).
+      PRINT round(stopDistance,4) + spc AT (20,24).
+      PRINT round(gradient,4) + spc AT (20,25).
 
-      PRINT round(__goal:DISTANCE) + spc AT (20,33).
-      PRINT Runmode + spc AT (20, 34).
-      PRINT round(stopDistance,4) + spc AT (20,36).
-      PRINT round(gradient,4) + spc AT (20,37).
+      PRINT Runmode + spc AT (20, 27).
+      PRINT AG1 + "   " AT (20, 28).
+
+      PRINT ROUND( wtVAL, 2) + spc AT (20, 30).
+      PRINT ROUND( kTurn, 2) + spc AT (20, 31).
+
+      PRINT ROUND(eWheelThrottle,2)  AT ( 6, 33).
+      PRINT ROUND(iWheelThrottle,2) AT (14,33).
+      PRINT ROUND(WTVAL,2) + spc AT (20 ,34).
     }
     SET looptime TO TIME:SECONDS - loopEndTime.
     SET loopEndTime TO TIME:SECONDS.
-
     }
 
     FUNCTION display_HUD {
       PRINT "Target Speed    :" AT (2,6).
       PRINT "Surface Speed   :" AT (2,7).
+      PRINT "Distance to goal:" AT (2,8).
 
-      PRINT "Commanded tVAL  :" AT (2,9).
-      PRINT "Commanded Turn  :" AT (2,10).
       PRINT "Target Heading  :" AT (2,12).
       PRINT "CurrentHeading  :" AT (2,13).
-      PRINT "Cruise Control  :" AT (2,14).
+      PRINT "  Next Heading  :" AT (2,14).
+      PRINT "  Next Bearing  :" AT (2,15).
 
       PRINT "Waypoint Dist   :"  AT (2,16).
       PRINT "Waypoints       :" AT (2,17).
       PRINT "Current WP      :" AT (2,18).
 
-      PRINT "E:" AT ( 2, 20).
-      PRINT "I:" AT (10,20).
-      PRINT "WTVAL " AT (2 ,21).
+      PRINT "Current Angle   :" AT (2,20).
+      PRINT "Predicted Angle :" AT (2,21).
 
-      PRINT "Next Target     :" AT (2,24).
-      PRINT "Next Heading    :" AT (2,25).
-      PRINT "Current Angle   :" AT (2,28).
-      PRINT "Predicted Angle :" AT (2,29).
-      PRINT "Difference      :" AT (2,30).
+      PRINT "Difference      :" AT (2,23).
+      PRINT "Stopping Dist   :" AT (2,24).
+      PRINT "Gradient        :" AT (2,25).
 
-      PRINT "Distance to goal:" AT (2,33).
-      PRINT "Runmode         :" AT (2,34).
-      PRINT "Stopping Dist   :" AT (2,36).
-      PRINT "Gradient        :" AT (2,37).
+      PRINT "Runmode         :" AT (2,27).
+      PRINT "Cruise Control  :" AT (2,28).
+
+      PRINT "Commanded tVAL  :" AT (2,30).
+      PRINT "Commanded Turn  :" AT (2,31).
+
+      PRINT "E:" AT ( 2, 33).
+      PRINT "I:" AT (10,33).
+      PRINT "WTVAL " AT (2 ,35).
     }
 
     FUNCTION nav_marker {

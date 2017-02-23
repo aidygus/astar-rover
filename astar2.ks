@@ -36,17 +36,6 @@ SET gscore TO LEXICON().
 SET camefrom TO LEXICON().
 SET neighbourlist TO LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
 
-// Create a list describing the grid
-
-// FROM {local x is 0.} UNTIL x = len STEP {set x to x+1.} DO {
-//   n:ADD(LIST(999999999,0,0,0,0,LIST())).
-// }
-// FROM {local x is 0.} UNTIL x = len STEP {set x to x+1.} DO {
-//   l:ADD(n:COPY).
-// }
-
-
-
 SET latdist TO (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
 SET lngdist TO (goal:LNG-start:LNG) / (gindex-sindex).
 
@@ -59,17 +48,19 @@ place_marker(goal,green,100,1000).
 
 SET route TO astar(sindex,gindex).
 CLEARVECDRAWS().
+clear_down().
 if route:LENGTH = 0 {
-  PRINT "---{  Route can not be found  }---" AT (2,2).
+  PRINT "---{  Route can not be found  }---" AT (2,1).
 }
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 60.
 
 
 //    /**
-//    @current LIST coordinates of the starting cell in the graph
+//    @sindex coordinates of the starting cell in the graph
+//    @gindex coordinates of the middle of the graph where the goal is
 //
-//    @return LIST/Boolean  Either returns a constructed list of the discovered route or false if no valid route can be found.
+//    @return LIST  returns a constructed list of the discovered route or empty if none is found.
 //    **/
 
 FUNCTION astar {
@@ -96,14 +87,7 @@ FUNCTION astar {
       SET K TO TERMINAL:INPUT:GETCHAR().
       IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
-        CLEARVECDRAWS().
-        map:CLEAR.  // Node list
-        openset:CLEAR. // Open Set
-        closedset:CLEAR. // Closed Set
-        fscorelist:CLEAR.// fscore list
-        fscore:CLEAR.
-        gscore:CLEAR.
-        camefrom:CLEAR.
+        clear_down().
       }
     }
 
@@ -150,6 +134,8 @@ FUNCTION astar {
   }
   return LIST().
 }
+
+
 
 FUNCTION get_neighbours {
   PARAMETER current,currentgscore.
@@ -329,6 +315,16 @@ function construct_route {
     totalpath:INSERT(0,LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
   }
   CLEARSCREEN.
-  PRINT totalpath.
   return totalpath.
+}
+
+FUNCTION clear_down {
+  CLEARVECDRAWS().
+  map:CLEAR.  // Node list
+  openset:CLEAR. // Open Set
+  closedset:CLEAR. // Closed Set
+  fscorelist:CLEAR.// fscore list
+  fscore:CLEAR.
+  gscore:CLEAR.
+  camefrom:CLEAR.
 }

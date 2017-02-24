@@ -12,31 +12,49 @@ The [A* algorythm](https://en.wikipedia.org/wiki/A*_search_algorithm) will find 
 
 ### Automatic speed limiter
 
-There are 3 scenarios where it will reduce or maintain speed.
+The script will monitor the situation of the rover and reduce or maintain speed depending on the environment around it.  Some of these situations include :
 
 * When approaching a waypoint with a deviation of over 5 degrees from current heading.
 * When approaching a change of slope angle.  It has a system where it will scan ahead based on the rovers braking distance so that if it detects a sudden change it can efficiently and safely brake before it hits the change.
-* While descending down hill it will brake to keep within the set speed limitations
+* While descending down hill it will brake to keep within the set speed limitations or reduce speed for very steep slopes.
+* Come to a complete halt a hold if it looses connection to KSC
+* Reverse and attempt to go round any objects it hits in it's path.
 
 ## Input Keys
 
 Managing the rover is done through Terminal Input commands these are :
 
-    * Up arrow      - Increment Latitude by 0.1 degrees
-    * Down arrow    - Decrease latitude by 0.1 degress
-    * Left arrow    - Increase Longitude by 0.1 degrees
-    * Right arrow   - Decrease Longitued by 0.1 degrees
+    Up arrow      - Increment Latitude by 0.1 degrees
+    Down arrow    - Decrease latitude by 0.1 degress
+    Left arrow    - Increase Longitude by 0.1 degrees
+    Right arrow   - Decrease Longitued by 0.1 degrees
 
-    * HOME          - Return arrow vector to vehicle
-    * END           - Exit the rover manager
-    * i/I           - Mark the first waypoint for a multi stage journey
+    HOME          - Return arrow vector to vehicle
+    END           - Exit the rover manager
 
-    * w/W           - Display list of contract waypoints on current body
-    * 1-9           - Select contract waypoint in list
+    i/I           - Mark the first waypoint for a multi stage journey
 
-    * n/N           - Navigate to next waypoint
+    w/W           - Display list of contract waypoints on current body
+    1-9           - Select contract waypoint in list
 
-    * Enter/return  - Execute astar path finding algorythm to destination
+    n/N           - Navigate to next waypoint
 
-    * Page Up       - Increase rover speed by 0.5 m/s
-    * Page down     - Decrease rover speed by 0.5 m/s
+    Enter/return  - Execute astar path finding algorythm to destination
+
+    Page Up       - Increase rover speed by 0.5 m/s
+    Page down     - Decrease rover speed by 0.5 m/s
+
+## Usage
+
+Clone this solution into the **<KSP Directory>/Ships/Scripts** folder
+
+Due to the size of the scripts it's best to run from Archive unless you have a processor with enough storage (around 30k for both scripts uncompiled).
+
+You can run the solution with
+* runpath("/asrover/rover").
+
+### Overhead
+
+Because the astar script is very process intensive it will increase the number of IPU (Instructions Per Update) that KOS can run per tick to 1500 then restore it when the search is completed.  Leaving it at the default 150 will mean that finding routes on larger graphs will take a long time.
+
+The rover management script is designed to run one iterative loop per tick so shouldn't add much overhead while operating.

@@ -1,6 +1,8 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
 LOCAL asrunmode IS 0.
+LOCAL current_ipu IS CONFIG.IPU.
+SET CONFIG.IPU TO 1500.
 
 LOCAL goal IS "".
 LOCAL wp IS "".
@@ -56,7 +58,7 @@ if route:LENGTH = 0 {
 }
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
-
+SET CONFIG.IPU TO current_ipu.
 
 //    /**
 //    @sindex coordinates of the starting x cell in the graph

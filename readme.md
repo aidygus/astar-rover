@@ -17,17 +17,17 @@ The script will monitor the situation of the rover and reduce or maintain speed 
 * When approaching a waypoint with a deviation of over 5 degrees from current heading.
 * When approaching a change of slope angle.  It has a system where it will scan ahead based on the rovers braking distance so that if it detects a sudden change it can efficiently and safely brake before it hits the change.
 * While descending down hill it will brake to keep within the set speed limitations or reduce speed for very steep slopes.
-* Come to a complete halt a hold if it looses connection to KSC
+* Come to a complete halt and hold if it looses connection to KSC
 * Reverse and attempt to go round any objects it hits in it's path.
 
 ## Input Keys
 
-Managing the rover is done through Terminal Input commands these are :
+Managing the rover is done through Terminal Input with these commands:
 
     Up arrow      - Increment Latitude by 0.1 degrees
     Down arrow    - Decrease latitude by 0.1 degress
-    Left arrow    - Increase Longitude by 0.1 degrees
-    Right arrow   - Decrease Longitued by 0.1 degrees
+    Left arrow    - Decrease Longitude by 0.1 degrees
+    Right arrow   - Increase Longitued by 0.1 degrees
 
     HOME          - Return arrow vector to vehicle
     END           - Exit the rover manager
@@ -46,7 +46,7 @@ Managing the rover is done through Terminal Input commands these are :
 
 ## Usage
 
-Clone this solution into the **<KSP Directory>/Ships/Scripts** folder
+Clone this solution into the **KSP Root/Ships/Scripts** folder
 
 Due to the size of the scripts it's best to run from Archive unless you have a processor with enough storage (around 30k for both scripts uncompiled).
 

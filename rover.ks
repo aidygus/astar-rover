@@ -106,12 +106,12 @@ until runmode = -1 {
     SET brakesOn TO TRUE.
   } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) AND runmode = 12 {
     SET runmode TO 0.
-    SET lastEvent TO TIME:SECONDS.
     if route:LENGTH <> 0 {
       restore_speed().
       SET brakesOn TO FALSE.
       SET WARP TO 0.
     }
+    SET lastEvent TO TIME:SECONDS.
   }
 
   if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1 {
@@ -128,13 +128,30 @@ until runmode = -1 {
 
     SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
-    IF ROUND(GROUNDSPEED) = 0 AND targetspeed <> 0 AND (TIME:SECONDS - lastEvent) > 20 AND runmode <> 12 {
-      SET runmode TO 5.
-      SET targetspeed TO -1.
-      SET lastEvent TO TIME:SECONDS.
-      LOCK targetHeading TO (__grid:HEADING - 90).
+    if ABS(__grid:HEADING - cHeading) > 40 AND runmode = 0{
+      SET runmode TO 2.
+      set_speed(1).
     }
-    ELSE if pangle > 5 AND runmode = 0 {          //
+
+    IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0 {
+      SET runmode TO 5.
+      SET lastEvent TO TIME:SECONDS.
+    } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 {
+      SET runmode TO 0.
+    } else if runmode = 5 AND ROUND(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 5 {
+      SET targetspeed TO -1.
+      LOCK targetHeading TO (__grid:HEADING - 90).
+    } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
+      SET targetspeed TO 0.
+      SET runmode to 6.
+    } else if runmode = 6 AND round(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 10 {
+      set_speed(2).
+      SET lastEvent TO TIME:SECONDS.
+    } else if runmode = 6 AND abs(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
+      LOCK targetHeading TO __grid:HEADING.
+      SET runmode TO 2.
+    }
+    if pangle > 5 AND runmode = 0 {          //
       SET runmode TO 2.
       set_speed(1).
     } else if runmode = 2 AND pangle < 5 {
@@ -154,7 +171,7 @@ until runmode = -1 {
     }
     LOCAL headingDifference IS route[rwaypoint]:HEADING - cHeading.
     SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
-    if __grid:DISTANCE < 50 AND ABS(nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
+    if __grid:DISTANCE < 25 AND ABS(nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
       SET runmode TO 1.
       if ABS(nextWaypointHeading) > 40 {
         set_speed(1).
@@ -163,23 +180,13 @@ until runmode = -1 {
       }
     }
     if runmode = 3 {
-      if route[rwaypoint-1]:DISTANCE > 30 AND ABS(headingDifference) < 5 {
+      if route[rwaypoint-1]:DISTANCE > 15 AND ABS(headingDifference) < 5 {
         restore_speed().
         SET runmode TO 0.
       }
     }
     if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
       next_waypoint(3).
-    }
-    if runmode = 5 AND (TIME:SECONDS - lastEvent) > 10 {
-      SET targetspeed TO 0.
-    } else if runmode = 5 AND round(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 10 {
-      SET runmode TO 6.
-      set_speed(2).
-      SET lastEvent TO TIME:SECONDS.
-    } else if runmode = 6 AND (TIME:SECONDS - lastEvent) > 10 {
-      LOCK targetHeading TO __grid:HEADING.
-      SET runmode TO 2.
     }
   } else {
     IF navpoints:LENGTH <> 0 AND rwaypoint <> -1 {

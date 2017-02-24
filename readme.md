@@ -5,12 +5,10 @@ This project started out as a proof of concept to see if it would be possible to
 ## Features
 
 ### Speed limiter
-
 Set the desired speed of the rover while cruising between waypoints.
 
 ### Set a single destination
-
-The A* algorythm will find the safest path it can find.  It does this by trying to avoid steep slopes prefering routes between -5 and +15 degrees.
+The [A* algorythm](https://en.wikipedia.org/wiki/A*_search_algorithm) will find the safest path it can find.  It does this by trying to avoid steep slopes prefering routes between -5 and +15 degrees.
 
 ### Automatic speed limiter
 
@@ -24,25 +22,21 @@ There are 3 scenarios where it will reduce or maintain speed.
 
 Managing the rover is done through Terminal Input commands these are :
 
-* Up arrow      - Increment Latitude by 0.1 degrees
-* Down arrow    - Decrease latitude by 0.1 degress
-* Left arrow    - Increase Longitude by 0.1 degrees
-* Right arrow   - Decrease Longitued by 0.1 degrees
+    * Up arrow      - Increment Latitude by 0.1 degrees
+    * Down arrow    - Decrease latitude by 0.1 degress
+    * Left arrow    - Increase Longitude by 0.1 degrees
+    * Right arrow   - Decrease Longitued by 0.1 degrees
 
+    * HOME          - Return arrow vector to vehicle
+    * END           - Exit the rover manager
+    * i/I           - Mark the first waypoint for a multi stage journey
 
+    * w/W           - Display list of contract waypoints on current body
+    * 1-9           - Select contract waypoint in list
 
-* HOME - Return arrow vector to vehicle
-* END - Exit the rover manager
-* i/I - Mark the first waypoint for a multi stage journey
+    * n/N           - Navigate to next waypoint
 
-* w/W - Display list of contract waypoints on current body
-* 1-9 - Select contract waypoint in list
+    * Enter/return  - Execute astar path finding algorythm to destination
 
-* n/N - Navigate to next waypoint
-
-* Enter/return - Execute astar path finding algorythm to destination
-
-
-
-* Page Up - Increase rover speed by 0.5 m/s
-* Page down - Decrease rover speed by 0.5 m/s
+    * Page Up       - Increase rover speed by 0.5 m/s
+    * Page down     - Decrease rover speed by 0.5 m/s

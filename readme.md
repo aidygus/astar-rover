@@ -5,49 +5,6 @@ This project started out as a proof of concept to see if it would be possible to
 ## Features
 
 ### Speed limiter
-<<<<<<< HEAD
-
-Set the desired speed of the rover while cruising between waypoints.
-
-### Set a single destination
-
-The A* algorythm will find the safest path it can find.  It does this by trying to avoid steep slopes prefering routes between -5 and +15 degrees.
-
-### Automatic speed limiter
-
-There are 3 scenarios where it will reduce or maintain speed.
-
-* When approaching a waypoint with a deviation of over 5 degrees from current heading.
-* When approaching a change of slope angle.  It has a system where it will scan ahead based on the rovers braking distance so that if it detects a sudden change it can efficiently and safely brake before it hits the change.
-* While descending down hill it will brake to keep within the set speed limitations
-
-## Input Keys
-
-Managing the rover is done through Terminal Input commands these are :
-
-* Up arrow      - Increment Latitude by 0.1 degrees
-* Down arrow    - Decrease latitude by 0.1 degress
-* Left arrow    - Increase Longitude by 0.1 degrees
-* Right arrow   - Decrease Longitued by 0.1 degrees
-
-
-
-* HOME - Return arrow vector to vehicle
-* END - Exit the rover manager
-* i/I - Mark the first waypoint for a multi stage journey
-
-* w/W - Display list of contract waypoints on current body
-* 1-9 - Select contract waypoint in list
-
-* n/N - Navigate to next waypoint
-
-* Enter/return - Execute astar path finding algorythm to destination
-
-
-
-* Page Up - Increase rover speed by 0.5 m/s
-* Page down - Decrease rover speed by 0.5 m/s
-=======
 Set the desired speed of the rover while cruising between waypoints.
 
 ### Set a single destination
@@ -101,4 +58,3 @@ You can run the solution with
 Because the astar script is very process intensive it will increase the number of IPU (Instructions Per Update) that KOS can run per tick to 1500 then restore it when the search is completed.  Leaving it at the default 150 will mean that finding routes on larger graphs will take a long time.
 
 The rover management script is designed to run one iterative loop per tick so shouldn't add much overhead while operating.
->>>>>>> 4a63ab4e03ef16e03ddbd593cb73f1108220819d

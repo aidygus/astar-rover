@@ -1,6 +1,11 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 
 LOCAL asrunmode IS 0.
+<<<<<<< HEAD
+=======
+LOCAL current_ipu IS CONFIG.IPU.
+SET CONFIG.IPU TO 1500.
+>>>>>>> 4a63ab4e03ef16e03ddbd593cb73f1108220819d
 
 LOCAL goal IS "".
 LOCAL wp IS "".
@@ -56,7 +61,11 @@ if route:LENGTH = 0 {
 }
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
+<<<<<<< HEAD
 
+=======
+SET CONFIG.IPU TO current_ipu.
+>>>>>>> 4a63ab4e03ef16e03ddbd593cb73f1108220819d
 
 //    /**
 //    @sindex coordinates of the starting x cell in the graph
@@ -73,6 +82,7 @@ FUNCTION astar {
 
   // Add starting position to open list
   openset:ADD(sindex+","+gindex,TRUE).
+<<<<<<< HEAD
 
   SET map[sindex+","+gindex] TO LEXICON("LAT",start:LAT,"LNG",start:LNG,"TERRAINHEIGHT",start:TERRAINHEIGHT,"POSITION",start:POSITION,"FSCORE",estimated_heuristic).
   SET map[gindex+","+gindex] TO LEXICON("LAT",goal:LAT,"LNG",goal:LNG,"TERRAINHEIGHT",goal:TERRAINHEIGHT,"POSITION",goal:POSITION,"FSCORE",0).
@@ -88,6 +98,23 @@ FUNCTION astar {
     LOCAL localfscore IS len*len.
     LOCAL delscore IS "".
 
+=======
+
+  SET map[sindex+","+gindex] TO LEXICON("LAT",start:LAT,"LNG",start:LNG,"TERRAINHEIGHT",start:TERRAINHEIGHT,"POSITION",start:POSITION,"FSCORE",estimated_heuristic).
+  SET map[gindex+","+gindex] TO LEXICON("LAT",goal:LAT,"LNG",goal:LNG,"TERRAINHEIGHT",goal:TERRAINHEIGHT,"POSITION",goal:POSITION,"FSCORE",0).
+
+  SET gscore[sindex+","+gindex] TO 0.
+  SET fscorelist[estimated_heuristic] TO LEXICON(sindex+","+gindex,LIST(sindex,gindex)).
+  SET fscore[sindex+","+gindex] TO estimated_heuristic.
+
+
+  until openset:LENGTH = 0 OR asrunmode = -1 {
+
+    LOCAL fscores IS fscorelist:KEYS.
+    LOCAL localfscore IS len*len.
+    LOCAL delscore IS "".
+
+>>>>>>> 4a63ab4e03ef16e03ddbd593cb73f1108220819d
     FOR score in fscores {
       if fscorelist[score]:LENGTH = 0 {
         fscorelist:REMOVE(score).
@@ -181,12 +208,20 @@ FUNCTION get_neighbours {
         }
       } else {
         SET scount TO scount + 1.
+<<<<<<< HEAD
       }
       // If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
       if scount = 3 {
         PRINT "!" AT (current[1],current[0]).
         // BREAK.
+=======
+>>>>>>> 4a63ab4e03ef16e03ddbd593cb73f1108220819d
       }
+      // If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
+      // if scount = 3 {
+      //   PRINT "!" AT (current[1],current[0]).
+      //   BREAK.
+      // }
     }
   }
 }
@@ -221,7 +256,11 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
+<<<<<<< HEAD
   if angle > -12 AND angle < 15 AND ROUND(grid:TERRAINHEIGHT) >= 0 {
+=======
+  if angle > -8 AND angle < 15 AND ROUND(grid:TERRAINHEIGHT) >= 0 {
+>>>>>>> 4a63ab4e03ef16e03ddbd593cb73f1108220819d
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.

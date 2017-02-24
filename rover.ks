@@ -121,11 +121,11 @@ until runmode = -1 {
 
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
-        IF GROUNDSPEED < 0.1 AND targetspeed <> 0 AND (TIME:SECONDS - lastEvent) > 20 {
+        IF ROUND(GROUNDSPEED) = 0 AND targetspeed <> 0 AND (TIME:SECONDS - lastEvent) > 20 AND runmode <> 12 {
           SET runmode to 5.
           SET targetspeed TO -1.
           SET lastEvent TO TIME:SECONDS.
-          LOCK targetHeading TO (__grid:HEADING - 90).
+          LOCK targetHeading TO (__grid:HEADING - 150).
         }
         ELSE if pangle > 5 AND runmode = 0 {          //
           SET runmode TO 2.
@@ -148,6 +148,7 @@ until runmode = -1 {
           SET brakesOn TO TRUE.
         } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) AND runmode = 12 {
           SET runmode TO 0.
+          SET lastEvent TO TIME:SECONDS.
           if route:LENGTH <> 0 {
             restore_speed().
             SET brakesOn TO FALSE.
@@ -171,24 +172,25 @@ until runmode = -1 {
           }
         }
         if runmode = 3 {
-          if route[rwaypoint-1]:DISTANCE > 30 AND headingDifference < 2 {
+          if route[rwaypoint-1]:DISTANCE > 30 AND headingDifference < 5 {
             restore_speed().
             SET runmode TO 0.
           }
         }
-        if route[rwaypoint]:DISTANCE < MAX(5,stopDistance) {
+        if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
           next_waypoint().
         }
-        if runmode = 5 AND (TIME:SECONDS - lastEvent) > 20 {
+        if runmode = 5 AND (TIME:SECONDS - lastEvent) > 10 {
           SET runmode TO 6.
-          SET targetspeed TO 2.
+          SET targetspeed TO 0.
           SET lastEvent TO TIME:SECONDS.
-        } else if runmode = 6 AND (TIME:SECONDS - lastEvent) > 20 {
+        } else if runmode = 6 AND round(GROUNDSPEED) = 0 {
+          restore_speed().
           LOCK targetHeading TO __grid:HEADING.
-          SET runmode TO 3.
+          SET runmode TO 2.
         }
       } else {
-        IF navpoints:LENGTH <> 0 AND rwaypoint <> -1{
+        IF navpoints:LENGTH <> 0 AND rwaypoint <> -1 {
           set route TO LIST().
           SET targetspeed TO 0.
           set rwaypoint TO -1.
@@ -206,7 +208,7 @@ until runmode = -1 {
       }
 
 
-      IF targetspeed > 0 { //IF we should be going forward
+      IF targetspeed <> 0 { //IF we should be going forward
         if brakesOn = false {
           brakes off.
         }
@@ -219,11 +221,11 @@ until runmode = -1 {
           SET wtVAL TO min( 1, max( -0.2, wtVAL)).
         }
       }
-      ELSE IF targetspeed < 0 AND runmode = 0 { //ELSE IF we're going backwards
-        SET wtVAL TO SHIP:CONTROL:PILOTWHEELTHROTTLE.
-        SET targetspeed TO 0. //Manual reverse throttle
-        SET iWheelThrottle TO 0.
-      }
+      // ELSE IF targetspeed < 0 AND runmode = 0 { //ELSE IF we're going backwards
+      //   SET wtVAL TO SHIP:CONTROL:PILOTWHEELTHROTTLE.
+      //   SET targetspeed TO 0. //Manual reverse throttle
+      //   SET iWheelThrottle TO 0.
+      // }
       ELSE { // IF value IS out of range or zero, stop.
         SET wtVAL TO 0.
         brakes on.
@@ -248,7 +250,7 @@ until runmode = -1 {
             SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
         }
 
-        when abs(GROUNDSPEED) > targetspeed then {  // borrowed from gaiiden / RoverDriver https://github.com/Gaiiden/RoverDriver/blob/master/begindrive.txt
+        when abs(GROUNDSPEED) > MAX(targetspeed,-1 * targetspeed) then {  // borrowed from gaiiden / RoverDriver https://github.com/Gaiiden/RoverDriver/blob/master/begindrive.txt
           if brakesOn = false {
             set brakesOn to true.
             brakes on.
@@ -264,7 +266,7 @@ until runmode = -1 {
         }.
 
         // do we need to disable the brakes?
-        when brakesOn = true and (abs(GROUNDSPEED) <= targetspeed OR time:seconds - lastBrake >= currentBrakeTime) then {
+        when brakesOn = true and (abs(GROUNDSPEED) <= MAX(targetspeed,-1*targetspeed) OR time:seconds - lastBrake >= currentBrakeTime) then {
           brakes off.
           set brakesOn to false.
           preserve.
@@ -325,6 +327,7 @@ until runmode = -1 {
       ELSE IF K = "w" OR K = "W" {
         CLEARSCREEN.
         LOCAL WPS IS ALLWAYPOINTS().
+        SET contractWayPoints TO LIST().
         SET runmode TO 10.
         FOR WP IN WPS {
           IF WP:BODY:NAME = BODY:NAME {
@@ -333,19 +336,25 @@ until runmode = -1 {
         }
       }
       ELSE IF K = "n" OR K = "N" {
-        next_waypoint().
+        next_waypoint(2).
       }
       ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
         CLEARVECDRAWS().
+        SET SHIP:CONTROL:WHEELTHROTTLE TO 0.
+        SET SHIP:CONTROL:WHEELSTEER TO 0.
       } ELSE IF N <> -99 {
         if N <= contractWayPoints:LENGTH {
           SET runmode TO 0.
           LOCAL w IS contractWayPoints[N-1].
           RUNPATH("/asrover/astar","WAYPOINT",w:NAME,false).
-          SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
-          start_navigation().
-          PRINT "  ---{   Navigating to " + w:NAME +"   }---" AT (0,1).
+          if route:LENGTH <> 0 {
+            SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
+            start_navigation().
+            PRINT "  ---{   Navigating to " + w:NAME +"   }---" AT (0,1).
+          } else {
+            display_HUD().
+          }
         }
       } ELSE {
         PRINT "# UNKNOWN COMMAND # " AT (2,TERMINAL:HEIGHT - 2).
@@ -369,11 +378,11 @@ until runmode = -1 {
         PRINT "(" + y + ") " + c:NAME +"      " AT (4,y+4).
         LOCAL p IS c:GEOPOSITION.
         PRINT " " + round((p:DISTANCE/1000),2) + " km" AT (25,y+4).
-        LOCAL y IS y+1.
+        SET y TO y+1.
       }
     } else {
       PRINT ROUND( targetspeed, 1) + spc AT (20, 6).
-      PRINT ROUND( GROUNDSPEED, 1) + spc AT (20, 7).
+      PRINT ROUND( GROUNDSPEED) + spc AT (20, 7).
       PRINT round(__goal:DISTANCE) + spc AT (20, 8).
 
       PRINT ROUND( targetheading, 2) + spc AT (20, 10).
@@ -487,11 +496,12 @@ until runmode = -1 {
 
     FUNCTION next_waypoint
     {
+      PARAMETER mode IS 3.
       SET rwaypoint TO rwaypoint + 1.
       if rwaypoint < route:LENGTH {
         SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
         // LOCK WHEELSTEERING TO route[rwaypoint].
         LOCK targetHeading TO __grid:HEADING.
-        SET runmode TO 3.
+        SET runmode TO mode.
       }
     }

@@ -107,7 +107,22 @@ until runmode = -1 {
 
       SET facvec TO SHIP:FACING.
 
-      if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint+1 < route:LENGTH {
+      IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE AND runmode <> 12 {
+        SET runmode to 12.
+        set_speed(0).
+        BRAKES ON.
+        SET brakesOn TO TRUE.
+      } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) AND runmode = 12 {
+        SET runmode TO 0.
+        SET lastEvent TO TIME:SECONDS.
+        if route:LENGTH <> 0 {
+          restore_speed().
+          SET brakesOn TO FALSE.
+          SET WARP TO 0.
+        }
+      }
+
+      if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1 {
         // IF runmode = 0 { //Govern the rover
         LOCAL predicted1 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5))).
         LOCAL predicted2 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5)+1)).
@@ -116,8 +131,8 @@ until runmode = -1 {
         SET angle TO ARCSIN(heightdiff/distance).
         SET gradient TO TAN(currentSlopeAngle).//heightdiff/distance.
         SET pangle TO MAX(currentSlopeAngle,angle) - MIN(currentSlopeAngle,angle).
-        PRINT round(angle) + spc AT (20,21).
-        PRINT round(pangle) + spc AT (20,22).
+        PRINT round(angle,2) + spc AT (20,21).
+        PRINT round(pangle,2) + spc AT (20,22).
 
         SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
@@ -125,7 +140,7 @@ until runmode = -1 {
           SET runmode to 5.
           SET targetspeed TO -1.
           SET lastEvent TO TIME:SECONDS.
-          LOCK targetHeading TO (__grid:HEADING - 150).
+          LOCK targetHeading TO (__grid:HEADING - 90).
         }
         ELSE if pangle > 5 AND runmode = 0 {          //
           SET runmode TO 2.
@@ -136,24 +151,9 @@ until runmode = -1 {
         }
         if angle < -25 AND runmode <> 4 {
           set_speed(2).
-        //   SET runmode TO 4.
+          SET runmode TO 4.
         //   SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
         //   LOCK targetHeading TO __grid:HEADING.
-        }
-
-        IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE AND runmode <> 12 {
-          SET runmode to 12.
-          set_speed(0).
-          BRAKES ON.
-          SET brakesOn TO TRUE.
-        } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) AND runmode = 12 {
-          SET runmode TO 0.
-          SET lastEvent TO TIME:SECONDS.
-          if route:LENGTH <> 0 {
-            restore_speed().
-            SET brakesOn TO FALSE.
-            SET WARP TO 0.
-          }
         }
 
         if runmode = 4 AND angle > -15
@@ -178,7 +178,7 @@ until runmode = -1 {
           }
         }
         if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
-          next_waypoint().
+          next_waypoint(3).
         }
         if runmode = 5 AND (TIME:SECONDS - lastEvent) > 10 {
           SET runmode TO 6.
@@ -341,8 +341,7 @@ until runmode = -1 {
       ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
         SET runmode TO -1.
         CLEARVECDRAWS().
-        SET SHIP:CONTROL:WHEELTHROTTLE TO 0.
-        SET SHIP:CONTROL:WHEELSTEER TO 0.
+        SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
       } ELSE IF N <> -99 {
         if N <= contractWayPoints:LENGTH {
           SET runmode TO 0.
@@ -413,7 +412,7 @@ until runmode = -1 {
     }
     SET looptime TO TIME:SECONDS - loopEndTime.
     SET loopEndTime TO TIME:SECONDS.
-    WAIT 0.
+    WAIT 0. //  We only need to run an iteration once per physics tick.  Ensure that we pause until the next script.
     }
 
     FUNCTION display_HUD {
@@ -496,12 +495,14 @@ until runmode = -1 {
 
     FUNCTION next_waypoint
     {
-      PARAMETER mode IS 3.
+      PARAMETER mode.
       SET rwaypoint TO rwaypoint + 1.
       if rwaypoint < route:LENGTH {
         SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
         // LOCK WHEELSTEERING TO route[rwaypoint].
         LOCK targetHeading TO __grid:HEADING.
         SET runmode TO mode.
+      } else {
+        SET rwaypoint TO rwaypoint - 1.
       }
     }

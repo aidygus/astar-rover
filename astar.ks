@@ -183,10 +183,10 @@ FUNCTION get_neighbours {
         SET scount TO scount + 1.
       }
       // If there are 3 slopes neighbouring then mark it as bad and go back to previous cell
-      if scount = 3 {
-        PRINT "!" AT (current[1],current[0]).
-        // BREAK.
-      }
+      // if scount = 3 {
+      //   PRINT "!" AT (current[1],current[0]).
+      //   BREAK.
+      // }
     }
   }
 }
@@ -221,7 +221,7 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  if angle > -12 AND angle < 15 AND ROUND(grid:TERRAINHEIGHT) >= 0 {
+  if angle > -8 AND angle < 15 AND ROUND(grid:TERRAINHEIGHT) >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.

@@ -10,6 +10,13 @@
 
 PARAMETER debug IS true.
 
+if EXISTS("1:/config/settings.json") = FALSE {
+  runpath("0:/asrover/setup").
+  REBOOT.
+} else {
+  SET settings TO READJSON("1:/config/settings.json").
+}
+
 lock turnlimit to min(1, 0.1 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 50.
@@ -22,7 +29,7 @@ SET iWheelThrottle TO 0. // AccumulATed speed error
 SET wtVAL TO 0. //Wheel Throttle Value
 SET kTurn TO 0. //Wheel turn value.
 SET targetspeed TO 0. //CruISe control starting speed
-SET lastTargetSpeed TO 4.
+SET lastTargetSpeed TO settings["DefaultSpeed"].
 SET targetHeading TO 90. //Used for autopilot steering
 SET NORTHPOLE TO LATLNG( 90, 0). //Reference heading
 SET AG9 TO FALSE.
@@ -158,7 +165,7 @@ until runmode = -1 {
       SET runmode TO 0.
       restore_speed().
     }
-    if angle < -25 AND runmode <> 4 {
+    if angle < settings["MinSlope"] AND runmode <> 4 {
       set_speed(2).
       SET runmode TO 4.
     //   SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
@@ -306,11 +313,11 @@ until runmode = -1 {
       SET rwaypoint TO -1.
       //Prevent decrease IF we are increasing
     }
-    ELSE IF K = "i" OR K = "I" {
+    ELSE IF K:TOUPPER = "I" {
       navpoints:ADD(__goal).
       waypoint_marker().
     }
-    ELSE IF K = "w" OR K = "W" {
+    ELSE IF K:TOUPPER = "W" {
       CLEARSCREEN.
       LOCAL WPS IS ALLWAYPOINTS().
       SET contractWayPoints TO LIST().
@@ -321,8 +328,11 @@ until runmode = -1 {
         }
       }
     }
-    ELSE IF K = "n" OR K = "N" {
+    ELSE IF K:TOUPPER = "N" {
       next_waypoint(2).
+    } ELSE IF K:TOUPPER = "S" {
+      runpath("0:/asrover/setup").
+      REBOOT.
     }
     ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
       SET runmode TO -1.

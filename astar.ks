@@ -3,7 +3,7 @@ PARAMETER input1 IS 1, input2 IS 1, debug IS true.
 LOCAL asrunmode IS 0.
 LOCAL current_ipu IS CONFIG:IPU.
 
-SET CONFIG:IPU TO 2000.
+SET CONFIG:IPU TO settings["IPU"].
 
 LOCAL goal IS "".
 LOCAL wp IS "".
@@ -225,7 +225,7 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  if angle > -15 AND angle < 20 AND ROUND(grid:TERRAINHEIGHT) >= 0 {
+  if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
@@ -234,7 +234,7 @@ FUNCTION test_neighbour{
     place_marker(grid,red,5,100,round(angle),0.05).
     SET setlist TO 2.
   } else {
-    if angle <= -25 {
+    if angle <= settings["MinSlope"] {
       PRINT "v" AT (printat[0],printat[1]).
     } else {
       PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point

@@ -39,7 +39,7 @@ You are curently able to set these 4 values :
 
 All these settings will be stored in the local drive within 1:/config/settings.json.
 
-
+If you want to run the rover from the local kOSProcessor rather than from Archive then you will need at least 15k capacity in order to store the compiled artefacts.
 
 ## Input Keys
 

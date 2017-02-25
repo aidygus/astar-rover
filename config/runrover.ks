@@ -5,4 +5,4 @@ CORE:PART:GETMODULE("kOSProcessor"):DOEVENT("Open Terminal").
 CLEARSCREEN.
 
 PRINT "Initializing".
-runpath("/asrover/rover").
+runpath("/astar-rover/rover").

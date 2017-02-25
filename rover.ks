@@ -11,13 +11,13 @@
 PARAMETER debug IS true.
 
 if EXISTS("1:/config/settings.json") = FALSE {
-  runpath("0:/asrover/setup").
+  runpath("0:/astar-rover/setup").
   REBOOT.
 } else {
   SET settings TO READJSON("1:/config/settings.json").
 }
 
-lock turnlimit to min(1, 0.1 / MAX(0.1,SHIP:GROUNDSPEED)). //Scale the
+lock turnlimit to min(0.5, settings["TurnLimit"] / SHIP:GROUNDSPEED). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
@@ -135,14 +135,52 @@ until runmode = -1 {
 
     SET stopDistance TO (GROUNDSPEED+0.5)^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
 
-    if ABS(__grid:HEADING - cHeading) > 40 AND runmode = 0{
-      SET runmode TO 2.
-      set_speed(1).
-    }
+    SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
+    SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
 
     IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0 {
       SET runmode TO 5.
       SET lastEvent TO TIME:SECONDS.
+    } else {
+      if pangle > 5 {          //
+        SET runmode TO 2.
+        restore_speed().
+        set_speed(1).
+      } else if ABS(headingDifference) > 40 AND targetspeed = lastTargetSpeed AND runmode <> 2 {
+        restore_speed().
+        set_speed(1).
+        SET runmode TO 3.
+      } else if angle < settings["MinSlope"] AND runmode <> 4 {
+        restore_speed().
+        set_speed(1).
+        SET runmode TO 4.
+      }
+      if __grid:DISTANCE < MAX(25,(stopDistance*1.5)) AND ABS(nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
+        SET runmode TO 1.
+        if ABS(targetHeading - cHeading) > 40 {
+          set_speed(1).
+        } else {
+          set_speed(3).
+        }
+      }
+      if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
+        next_waypoint(3).
+      }
+    }
+    if runmode = 2 AND pangle < 5 {
+      SET runmode TO 0.
+      restore_speed().
+    } else if runmode = 3 {
+      LOCAL waypointcounter IS rwaypoint-1.
+      if rwaypoint = 0 {
+        SET waypointcounter TO rwaypoint.
+      }
+      if route[waypointcounter]:DISTANCE > 15 AND ABS(headingDifference) < 5 {
+        restore_speed().
+        SET runmode TO 0.
+      }
+    } else if runmode = 4 AND angle > settings["MinSlope"] {
+        restore_speed().
     } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 {
       SET runmode TO 0.
     } else if runmode = 5 AND ROUND(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 5 {
@@ -158,43 +196,6 @@ until runmode = -1 {
       LOCK targetHeading TO __grid:HEADING.
       SET runmode TO 2.
     }
-    if pangle > 5 AND runmode = 0 {          //
-      SET runmode TO 2.
-      set_speed(1).
-    } else if runmode = 2 AND pangle < 5 {
-      SET runmode TO 0.
-      restore_speed().
-    }
-    if angle < settings["MinSlope"] AND runmode <> 4 {
-      set_speed(2).
-      SET runmode TO 4.
-    //   SET __grid TO LATLNG(route[rwaypoint-1][0]:LAT,route[rwaypoint-1][0]:LNG).
-    //   LOCK targetHeading TO __grid:HEADING.
-    }
-
-    if runmode = 4 AND angle > -15
-    {
-        restore_speed().
-    }
-    LOCAL headingDifference IS route[rwaypoint]:HEADING - cHeading.
-    SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
-    if __grid:DISTANCE < 25 AND ABS(nextWaypointHeading) > 5 AND runmode = 0 and rwaypoint <> 0 {
-      SET runmode TO 1.
-      if ABS(nextWaypointHeading) > 40 {
-        set_speed(1).
-      } else {
-        set_speed(3).
-      }
-    }
-    if runmode = 3 {
-      if route[rwaypoint-1]:DISTANCE > 15 AND ABS(headingDifference) < 5 {
-        restore_speed().
-        SET runmode TO 0.
-      }
-    }
-    if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
-      next_waypoint(3).
-    }
   } else {
     IF navpoints:LENGTH <> 0 AND rwaypoint <> -1 {
       SET route TO LIST().
@@ -203,7 +204,7 @@ until runmode = -1 {
       SET runmode TO 0.
       LOCAL gl IS navpoints[0].
       navpoints:REMOVE(0).
-      RUNPATH("/asrover/astar","LATLNG",gl,false).
+      RUNPATH("/astar-rover/astar","LATLNG",gl,false).
       start_navigation().
     } else {
       PRINT "---{   Rover has arrived at location  }---         " + spc AT (2,1).
@@ -238,7 +239,7 @@ until runmode = -1 {
       } ELSE IF errorSteering < -180 {
         SET errorSteering TO errorSteering + 360.
       }
-      SET desiredSteering TO -errorSteering / 20.
+      SET desiredSteering TO -errorSteering / 30.
       SET kturn TO min( 1, max( -1, desiredSteering)) * turnlimit.
     } ELSE {
       SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
@@ -289,9 +290,9 @@ until runmode = -1 {
     }
     ELSE IF K = TERMINAL:INPUT:RETURN {
       if navpoints:LENGTH = 0 {
-        RUNPATH("/asrover/astar","LATLNG",__goal,false).
+        RUNPATH("/astar-rover/astar","LATLNG",__goal,false).
       } else {
-        RUNPATH("/asrover/astar","LATLNG",navpoints[0],false).
+        RUNPATH("/astar-rover/astar","LATLNG",navpoints[0],false).
         navpoints:REMOVE(0).
       }
       start_navigation().
@@ -331,7 +332,7 @@ until runmode = -1 {
     ELSE IF K:TOUPPER = "N" {
       next_waypoint(2).
     } ELSE IF K:TOUPPER = "S" {
-      runpath("0:/asrover/setup").
+      runpath("0:/astar-rover/setup").
       REBOOT.
     }
     ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
@@ -342,7 +343,7 @@ until runmode = -1 {
       if N <= contractWayPoints:LENGTH {
         SET runmode TO 0.
         LOCAL w IS contractWayPoints[N-1].
-        RUNPATH("/asrover/astar","WAYPOINT",w:NAME,false).
+        RUNPATH("/astar-rover/astar","WAYPOINT",w:NAME,false).
         if route:LENGTH <> 0 {
           SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
           start_navigation().
@@ -461,7 +462,7 @@ until runmode = -1 {
       SET TERMINAL:HEIGHT TO 40.
       CLEARSCREEN.
       display_HUD().
-      SET rwaypoint TO 0.
+      SET rwaypoint TO 1.
       if route:LENGTH <> 0 {
         SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
         LOCK targetHeading TO __grid:HEADING.

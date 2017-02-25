@@ -18,7 +18,8 @@ LOCAL default_values IS LEXICON(
     "MinSlope", LIST(1,-45,0),
     "MaxSlope", LIST(1,0,45),
     "IPU", LIST(500,500,2000),
-    "DefaultSpeed", LIST(1,1,50)
+    "DefaultSpeed", LIST(1,1,50),
+    "TurnLimit", LIST(0.01,0.1,0.5)
 ).
 
 if EXISTS("1:/config/settings.json") = FALSE {
@@ -26,7 +27,8 @@ if EXISTS("1:/config/settings.json") = FALSE {
     "MinSlope", -15,
     "MaxSlope", 25,
     "IPU", 2000,
-    "DefaultSpeed", 4
+    "DefaultSpeed", 4,
+    "TurnLimit", 0.2
   ).
   WRITEJSON(settings,"1:/config/settings.json").
 } else {
@@ -103,15 +105,18 @@ FUNCTION settings_hud {
   PRINT row AT (2,8).
   PRINT "| 4 | Default Speed   |                      |" AT (2,9).
   PRINT row AT (2,10).
+  PRINT "| 5 | Turn Limit      |                      |" AT (2,11).
+  PRINT row AT (2,12).
 
-  PRINT "Press number of value you wish to edit." AT (2,12).
-  PRINT "Use the Up and Down cursor arrows to" AT (2,13).
-  PRINT "select values" AT ( 3,14).
-  PRINT "Settings will automatically save" AT (2,16).
+  PRINT "Press number of value you wish to edit." AT (2,14).
+  PRINT "Use the Up and Down cursor arrows to" AT (2,15).
+  PRINT "select values" AT ( 3,16).
+  PRINT "Settings will automatically save" AT (2,17).
   PRINT settings["MinSlope"] AT (28,3).
   PRINT settings["MaxSlope"] AT (28,5).
   PRINT settings["IPU"] AT (28,7).
   PRINT settings["DefaultSpeed"] AT (28,9).
+  PRINT settings["TurnLimit"] AT (28,11).
 }
 
 FUNCTION initiate {
@@ -131,10 +136,10 @@ FUNCTION initiate {
       CREATEDIR("1:/asrover").
     }
     report("Compiling rover script",5,y).
-    COMPILE "0:/asrover/rover.ks" TO "1:/asrover/rover.ksm".
+    COMPILE "0:/astar-rover/rover.ks" TO "1:/astar-rover/rover.ksm".
     SET y TO report(" - Done.",30,y).
     report("Compiling A* scripts",5,y).
-    COMPILE "0:/asrover/astar.ks" TO "1:/asrover/astar.ksm".
+    COMPILE "0:/astar-rover/astar.ks" TO "1:/astar-rover/astar.ksm".
     SET Y TO report(" - Done.",30,y).
     PRINT ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free" AT (5,y).
   }
@@ -143,7 +148,7 @@ FUNCTION initiate {
     SET y TO report(" - Creating boot directory.",6,y).
     CREATEDIR("1:/boot").
     SET y TO report(" - Copying boot file.",6,y).
-    COPYPATH("0:/asrover/config/runrover.ks","1:/boot/runrover.ks").
+    COPYPATH("0:/astar-rover/config/runrover.ks","1:/boot/runrover.ks").
     SET y TO report(" - Setting boot file to run at startup.",6,y).
     SET CORE:PART:GETMODULE("kOSProcessor"):BOOTFILENAME TO "/boot/runrover.ks".
   }
@@ -151,8 +156,6 @@ FUNCTION initiate {
   IF EXISTS("1:/config") = FALSE {
     SET y TO report(" - Creating config directory.",5,y).
     CREATEDIR("1:/config").
-    SET y TO report(" - Copying default settings file",5,y).
-    COPYPATH("0:/asrover/config/settings.json","1:/asrover/config/settings.json").
   }
   SET y TO report("Initialization process completed ",2,y+2).
   SET y TO report(ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free",5,y).
@@ -177,7 +180,7 @@ FUNCTION center {
 
 FUNCTION handler_settings {
   PARAMETER K,N.
-  LOCAL set IS LIST(3,5,7,9).
+  LOCAL set IS LIST(3,5,7,9,11).
   LOCAL keys IS settings:KEYS.
   IF N <> -99 {
     FOR s IN set {

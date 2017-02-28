@@ -16,6 +16,7 @@ if EXISTS("1:/config/settings.json") = FALSE {
   REBOOT.
 } else {
   SET settings TO READJSON("1:/config/settings.json").
+  SET logging TO READJSON("1:/config/log.json").
 }
 
 lock turnlimit to min(1, (settings["TurnLimit"] * const_gravity) / SHIP:GROUNDSPEED). //Scale the
@@ -55,7 +56,20 @@ SET gradient TO 0.
 SET wpm TO LIST().
 SET navpoints TO LIST().
 SET contractWayPoints TO LIST().
-SET sp TO LIST().
+SET maxCharge TO STAGE:ELECTRICCHARGE.
+LIST RESOURCES IN reslist.
+FOR res IN reslist{
+  if res:NAME = "ElectricCharge" {
+    SET Electric TO res.
+  }
+}
+LOCK chargeLevel TO ROUND(100*Electric:AMOUNT/Electric:CAPACITY).
+
+SET menu TO 0.
+SET nextWrite TO -1.
+//     0 Main Menu
+//     1 Select Waypoint
+//     2 Do Science
 
 clearscreen.
 CLEARVECDRAWS().
@@ -65,7 +79,7 @@ lights on.
 BRAKES ON.
 LOCK throttle TO 0.
 
-SET runmode TO 9.
+SET runmode TO 0.
     // Valid runmodes
     //    0  Normal Operation
     //    1  Approaching Waymarker
@@ -74,10 +88,8 @@ SET runmode TO 9.
     //    4  Very Steep Slope ahead.  Find alternative route.
     //    5  Has hit an obstacle.
     //    6  Attempting to move round obstacle.
+    //    7  Manual Hold
 
-    //    9  Display Menu
-    //    10 Select Waypoint
-    //    11 Do Science
     //    12 No Connection
 
 LOCK __current TO SHIP:GEOPOSITION.
@@ -119,12 +131,12 @@ until runmode = -1 {
 
   SET facvec TO SHIP:FACING.
 
-  IF ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE AND runmode <> 12 {
+  IF ((ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE) OR chargeLevel < 20) AND runmode <> 12 {
     SET runmode TO 12.
     set_speed(0).
     BRAKES ON.
     SET brakesOn TO TRUE.
-  } else if ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) AND runmode = 12 {
+  } else if ((ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP)) OR chargeLevel > 20) AND runmode = 12 {
     SET runmode TO 0.
     if route:LENGTH <> 0 {
       restore_speed().
@@ -144,92 +156,94 @@ until runmode = -1 {
 
   SET stopDistance TO get_stop_distance(GROUNDSPEED+0.5).
 
-// LOG currentSlopeAngle+","+gradient+","+(1/(const_gravity + gradient)) TO "0:/debug.log".
   if ABS(GROUNDSPEED) > 0.1 {
-    SET slopeSpeed TO SQRT(get_stop_distance(settings["DefaultSpeed"])*(( 2 /const_gravity / (1 / const_gravity + gradient)))).   // √(30×(2÷1.62÷(1÷(1.62−0.823))))
+    SET slopeSpeed TO SQRT(get_stop_distance(settings["DefaultSpeed"],0)*(( 2 / const_gravity / (1 / const_gravity + gradient)))).
   }
-  if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1 {
-    // IF runmode = 0 { //Govern the rover
 
-    SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
-    SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
+  if runmode <> 12 {
+    if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1 {
+      // IF runmode = 0 { //Govern the rover
 
-    IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0 {
-      SET runmode TO 5.
-      SET lastEvent TO TIME:SECONDS.
-    } else {
-      if pangle > 5 {          //
-        SET runmode TO 2.
-        set_speed(1).
-      } else if angle < settings["MinSlope"] AND runmode <> 4 {
-        LOCK targetspeed TO slopeSpeed.
-        // set_speed(3).
-        SET runmode TO 4.
-      } else if ABS(headingDifference) > 40 AND targetspeed = lastTargetSpeed AND runmode <> 2 AND runmode <> 4 {
-        set_speed(1).
-        SET runmode TO 3.
-      }
-      if __grid:DISTANCE < MAX(25,(stopDistance*1.5)) AND ABS(headingDifference > 40) and rwaypoint <> 0 {
-        SET runmode TO 1.
-        if ABS(targetHeading - cHeading) > 40 {
+      SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
+      SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
+
+      IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0 {
+        SET runmode TO 5.
+        SET lastEvent TO TIME:SECONDS.
+      } else {
+        if pangle > 5 {          //
+          SET runmode TO 2.
           set_speed(1).
-        } else {
-          set_speed(3).
+        } else if angle < settings["MinSlope"] AND runmode <> 4 {
+          LOCK targetspeed TO slopeSpeed.
+          // set_speed(3).
+          SET runmode TO 4.
+        } else if ABS(headingDifference) > 40 AND targetspeed = lastTargetSpeed AND runmode <> 2 AND runmode <> 4 {
+          set_speed(1).
+          SET runmode TO 3.
+        }
+        if __grid:DISTANCE < MAX(25,(stopDistance*1.5)) AND ABS(headingDifference > 40) and rwaypoint <> 0 {
+          SET runmode TO 1.
+          if ABS(targetHeading - cHeading) > 40 {
+            set_speed(1).
+          } else {
+            set_speed(3).
+          }
+        }
+        if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
+          next_waypoint(3).
         }
       }
-      if route[rwaypoint]:DISTANCE < MAX(15,stopDistance) {
-        next_waypoint(3).
-      }
-    }
-    if runmode = 2 AND pangle < 5 {
-      SET runmode TO 0.
-      restore_speed().
-    } else if runmode = 3 {
-      LOCAL waypointcounter IS rwaypoint-1.
-      if rwaypoint = 0 {
-        SET waypointcounter TO rwaypoint.
-      }
-      if ABS(headingDifference) < 10 {
+      if runmode = 2 AND pangle < 5 {
+        SET runmode TO 0.
+        restore_speed().
+      } else if runmode = 3 {
+        LOCAL waypointcounter IS rwaypoint-1.
+        if rwaypoint = 0 {
+          SET waypointcounter TO rwaypoint.
+        }
+        if ABS(headingDifference) < 10 {
+          restore_speed().
+          SET runmode TO 0.
+        }
+      } else if runmode = 4 AND angle > settings["MinSlope"] {
+        UNLOCK targetspeed.
+        restore_speed().
+      } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 {
         restore_speed().
         SET runmode TO 0.
-      }
-    } else if runmode = 4 AND angle > settings["MinSlope"] {
-      UNLOCK targetspeed.
-      restore_speed().
-    } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 {
-      restore_speed().
-      SET runmode TO 0.
-    } else if runmode = 5 AND ROUND(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 5 {
-      SET targetspeed TO -1.
-      LOCK targetHeading TO (__grid:HEADING - 90).
-    } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
-      SET targetspeed TO 0.
-      SET runmode to 6.
-    } else if runmode = 6 AND round(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 10 {
-      set_speed(2).
-      SET lastEvent TO TIME:SECONDS.
-    } else if runmode = 6 AND abs(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
-      LOCK targetHeading TO __grid:HEADING.
-      SET runmode TO 2.
-    }
-  } else {
-    IF navpoints:LENGTH <> 0 AND rwaypoint <> -1 {
-      SET route TO LIST().
-      SET targetspeed TO 0.
-      SET rwaypoint TO -1.
-      SET runmode TO 0.
-      LOCAL gl IS navpoints[0].
-      navpoints:REMOVE(0).
-      RUNPATH("/astar-rover/astar","LATLNG",gl,false).
-      start_navigation().
-    } else {
-      if AG1 {
-        PRINT "---{   Rover has arrived at location  }---         " + spc AT (2,1).
+      } else if runmode = 5 AND ROUND(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 5 {
+        SET targetspeed TO -1.
+        LOCK targetHeading TO (__grid:HEADING - 90).
+      } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
         SET targetspeed TO 0.
-        BRAKES ON.
-        UNLOCK targetheading.
+        SET runmode to 6.
+      } else if runmode = 6 AND round(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 10 {
+        set_speed(2).
+        SET lastEvent TO TIME:SECONDS.
+      } else if runmode = 6 AND abs(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
+        LOCK targetHeading TO __grid:HEADING.
+        SET runmode TO 2.
+      }
+    } else {
+      IF navpoints:LENGTH <> 0 AND rwaypoint <> -1 {
+        SET route TO LIST().
+        SET targetspeed TO 0.
+        SET rwaypoint TO -1.
+        SET runmode TO 0.
+        LOCAL gl IS navpoints[0].
+        navpoints:REMOVE(0).
+        RUNPATH("/astar-rover/astar","LATLNG",gl,false).
+        start_navigation().
       } else {
-        PRINT"---{   Manual controle   }---" + spc AT (2,1).
+        if AG1 {
+          PRINT "---{   Rover has arrived at location  }---         " + spc AT (2,1).
+          SET targetspeed TO 0.
+          BRAKES ON.
+          UNLOCK targetheading.
+        } else {
+          PRINT"---{   Manual controle   }---" + spc AT (2,1).
+        }
       }
     }
   }
@@ -265,9 +279,13 @@ until runmode = -1 {
     SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
   }
 
-  if GROUNDSPEED < 5 AND targetspeed> 0 {
+  if ABS(GROUNDSPEED) < 5 AND targetspeed > 0 {
      //Safety adjustment to help reduce roll-back at low speeds
-     set wtVAL to min( 1, max( -0.2, wtVAL)).
+     if targetspeed > 0 {
+       set wtVAL to min( 1, max( -0.2, wtVAL)).
+     } else {
+       set wtVAL to max( -1, min( 0.2, wtVAL)).
+     }
   }
 
 
@@ -352,6 +370,7 @@ until runmode = -1 {
     }
     ELSE IF K:TOUPPER = "W" {
       CLEARSCREEN.
+      SET menu TO 1.
       LOCAL WPS IS ALLWAYPOINTS().
       SET contractWayPoints TO LIST().
       SET runmode TO 10.
@@ -369,27 +388,37 @@ until runmode = -1 {
       REBOOT.
     }
     ELSE IF K:TOUPPER = "S" {
-      SET runmode TO 11.
-      SET sp TO get_science_parts().
+      SET menu TO 2.
       science_menu().
     }
     ELSE IF K:TOUPPER = "R" {
-      display_HUD.
+      SET menu TO 0.
+      display_HUD().
+    }
+    ELSE IF K:TOUPPER = "H" {
+      if runmode = 7 {
+        SET runmode to 0.
+        restore_speed().
+      } else {
+        SET targetspeed TO 0.
+        SET brakesOn TO TRUE.
+        SET runmode TO 7.
+      }
     }
     ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
       SET runmode TO -1.
       CLEARVECDRAWS().
       SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
     } ELSE IF N <> -99 {
-      if runmode = 11 {
+      if menu = 2 {
         do_science(N).
         display_HUD().
-        SET runmode TO 0.
-      } else if runmode = 10 {
+        SET menu TO 0.
+      } else if menu = 1 {
         if N <= contractWayPoints:LENGTH {
-          SET runmode TO 0.
           LOCAL w IS contractWayPoints[N-1].
           RUNPATH("/astar-rover/astar","WAYPOINT",w:NAME,false).
+          SET menu TO 0.
           if route:LENGTH <> 0 {
             SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
             start_navigation().
@@ -400,6 +429,7 @@ until runmode = -1 {
           }
         }
       }
+      PRINT spc + spc + spc + spc AT (2,TERMINAL:HEIGHT - 2).
     } ELSE {
       PRINT "# UNKNOWN COMMAND # " AT (2,TERMINAL:HEIGHT - 2).
     }
@@ -415,7 +445,7 @@ until runmode = -1 {
   SET SHIP:CONTROL:WHEELTHROTTLE TO WTVAL.
   SET SHIP:CONTROL:WHEELSTEER TO kTurn.
 
-  if runmode = 10 {
+  if menu = 1 {
     PRINT "Press a number to select a waypoint" AT (2, 3).
     LOCAL y IS 1.
     FOR c IN contractWayPoints {
@@ -424,7 +454,7 @@ until runmode = -1 {
       PRINT " " + round((p:DISTANCE/1000),2) + " km  " AT (30,y+4).
       SET y TO y+1.
     }
-  } else if runmode <> 11 {
+  } else if menu = 0 {
     PRINT ROUND( targetspeed, 1) + spc AT (20, 6).
     PRINT ROUND( GROUNDSPEED) + spc AT (20, 7).
     PRINT round(__goal:DISTANCE) + spc AT (20, 8).
@@ -450,14 +480,18 @@ until runmode = -1 {
     PRINT Runmode + spc AT (20, 27).
     PRINT AG1 + "   " AT (20, 28).
 
-    PRINT ROUND( wtVAL, 2) + spc AT (20, 30).
-    PRINT ROUND( kTurn, 2) + spc AT (20, 31).
-
-    PRINT ROUND(eWheelThrottle,2)  AT ( 6, 33).
-    PRINT ROUND(iWheelThrottle,2) AT (16,33).
+    PRINT ROUND( logging["Odometer"]/1000, 1) + "km" + spc AT (20, 30).
+    PRINT ROUND( chargeLevel, 1) + "%" + spc AT (20, 31).
   }
+
   SET looptime TO TIME:SECONDS - loopEndTime.
   SET loopEndTime TO TIME:SECONDS.
+
+  SET logging["Odometer"] TO logging["Odometer"] + (GROUNDSPEED * looptime).
+  if TIME:SECONDS > nextWrite {
+    WRITEJSON(logging,"1:/config/log.json").
+    SET nextWrite TO TIME:SECONDS + 10.
+  }
   WAIT 0. //  We only need to run an iteration once per physics tick.  Ensure that we pause until the next tick.
 }
 
@@ -486,11 +520,8 @@ until runmode = -1 {
       PRINT "Runmode         :" AT (2,27).
       PRINT "Cruise Control  :" AT (2,28).
 
-      PRINT "Commanded tVAL  :" AT (2,30).
-      PRINT "Commanded Turn  :" AT (2,31).
-
-      PRINT "E:" AT ( 2, 33).
-      PRINT "I:" AT (12,33).
+      PRINT "Odometer        :" AT (2,30).
+      PRINT "Electric        :" AT (2,31).
     }
 
     FUNCTION nav_marker {
@@ -541,8 +572,8 @@ until runmode = -1 {
     }
 
     FUNCTION get_stop_distance{
-      PARAMETER speed.
-      return speed^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
+      PARAMETER speed, gr IS gradient.
+      return speed^2 / ( 2 * const_gravity * ( 1 / const_gravity + gr)).
     }
 
     FUNCTION next_waypoint
@@ -570,6 +601,7 @@ until runmode = -1 {
 
     FUNCTION science_menu {
       CLEARSCREEN.
+      LOCAL sp IS get_science_parts().
       PRINT "  ---{  Select a science part }---" AT (2,2).
       LOCAL y IS 1.
       FOR p IN sp {
@@ -580,6 +612,7 @@ until runmode = -1 {
 
     FUNCTION do_science {
       PARAMETER N.
+      LOCAL sp IS get_science_parts().
       LOCAL sc TO sp[N-1].
       LOCAL mods IS sc:MODULES.
       FOR mo IN mods {

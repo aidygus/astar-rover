@@ -24,15 +24,27 @@ LOCAL default_values IS LEXICON(
 
 if EXISTS("1:/config/settings.json") = FALSE {
   SET settings TO LEXICON(
-    "MinSlope", -15,
-    "MaxSlope", 25,
+    "MinSlope", -10,
+    "MaxSlope", 15,
     "IPU", 2000,
     "DefaultSpeed", 4,
-    "TurnLimit", 0.2
+    "TurnLimit", 0.15
   ).
   WRITEJSON(settings,"1:/config/settings.json").
 } else {
   SET settings TO READJSON("1:/config/settings.json").
+}
+
+if EXISTS("1:/config/log.json") = FALSE {
+  SET logging TO LEXICON(
+    "Odometer",0,
+    "MaxSpeed",0,
+    "MaxSlope",0,
+    "MinSlope",0
+  ).
+  WRITEJSON(logging,"1:/config/log.json").
+} else {
+  SET logging TO READJSON("1:/config/log.json").
 }
 main_hud().
 
@@ -210,9 +222,8 @@ FUNCTION handler_settings {
 
 FUNCTION reset {
   CLEARSCREEN.
-  center("---{ Resetting rover to factory settings }---",2).
   DELETEPATH("1:/boot").
-  DELETEPATH("1:/asrover").
+  DELETEPATH("1:/astar-rover").
   DELETEPATH("1:/config").
   report("Rover has been reset",2,4).
   report("Press Home key to continue",2,5).

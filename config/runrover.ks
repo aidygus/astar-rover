@@ -1,4 +1,4 @@
-IF EXISTS("1:/asrover") = FALSE {
+IF EXISTS("1:/astar-rover") = FALSE {
   SWITCH TO 0.
 } else {
   SWITCH TO 1.

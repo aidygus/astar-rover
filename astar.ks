@@ -8,6 +8,8 @@ SET CONFIG:IPU TO settings["IPU"].
 LOCAL goal IS "".
 LOCAL wp IS "".
 
+LOCAL charSize IS LIST(TERMINAL:CHARHEIGHT,TERMINAL:CHARWIDTH).
+
 LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
 
 if input1 = "LATLNG" {
@@ -19,7 +21,12 @@ if input1 = "LATLNG" {
   SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
 }
 
-LOCAL len IS MAX(50,MIN(200,CEILING((goal:DISTANCE/100)*3))).
+LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+IF len > 160 {
+
+  SET TERMINAL:CHARWIDTH TO 4.
+  SET TERMINAL:CHARHEIGHT TO 4.
+}
 LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
 LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
 LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
@@ -60,6 +67,8 @@ if route:LENGTH = 0 {
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
 SET CONFIG:IPU TO current_ipu.
+SET TERMINAL:CHARWIDTH TO charSize[1].
+SET TERMINAL:CHARHEIGHT TO charSize[0].
 
 //    /**
 //    @sindex coordinates of the starting x cell in the graph
@@ -330,10 +339,10 @@ function construct_route {
 
 FUNCTION clear_down {
   CLEARVECDRAWS().
-  map:CLEAR.  // Node list
-  openset:CLEAR. // Open Set
-  closedset:CLEAR. // Closed Set
-  fscorelist:CLEAR.// fscore list
+  map:CLEAR.
+  openset:CLEAR.
+  closedset:CLEAR.
+  fscorelist:CLEAR.
   fscore:CLEAR.
   gscore:CLEAR.
   camefrom:CLEAR.

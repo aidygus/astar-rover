@@ -40,9 +40,11 @@ if EXISTS("1:/config/log.json") = FALSE {
     "Odometer",0,
     "MaxSpeed",0,
     "MaxSlope",0,
-    "MinSlope",0,
+    "MinSlope",0
   ).
   WRITEJSON(logging,"1:/config/log.json").
+} else {
+  SET logging TO READJSON("1:/config/log.json").
 }
 main_hud().
 

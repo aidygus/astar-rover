@@ -21,12 +21,11 @@ if input1 = "LATLNG" {
   SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
 }
 
-LOCAL len IS MAX(50,CEILING((goal:DISTANCE/100)*3)).
-IF len > 150 {
-  LOCAL charDiff IS len - 150.
+LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+IF len > 160 {
 
-  SET TERMINAL:CHARWIDTH TO ROUND(MAX(charSize[1],MIN(6,charSize[1] - (charDiff / charSize[1])))).
-  SET TERMINAL:CHARHEIGHT TO ROUND(MAX(charSize[0],MIN(6,charSize[0] - (charDiff / charSize[0])))).
+  SET TERMINAL:CHARWIDTH TO 4.
+  SET TERMINAL:CHARHEIGHT TO 4.
 }
 LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
 LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal

@@ -56,8 +56,15 @@ SET gradient TO 0.
 SET wpm TO LIST().
 SET navpoints TO LIST().
 SET contractWayPoints TO LIST().
-SET maxCharge TO STAGE:ELECTRICCHARGE:CAPCITY.
-LOCK chargeLevel TO ROUND(100*STAGE:ELECTRICCHARGE:AMOUNT/maxCharge).
+SET maxCharge TO STAGE:ELECTRICCHARGE.
+LIST RESOURCES IN reslist.
+FOR res IN reslist{
+  if res:NAME = "ElectricCharge" {
+    SET Electric TO res.
+  }
+}
+LOCK chargeLevel TO ROUND(100*Electric:AMOUNT/Electric:CAPACITY).
+
 SET menu TO 0.
 SET nextWrite TO -1.
 //     0 Main Menu
@@ -150,7 +157,7 @@ until runmode = -1 {
   SET stopDistance TO get_stop_distance(GROUNDSPEED+0.5).
 
   if ABS(GROUNDSPEED) > 0.1 {
-    SET slopeSpeed TO SQRT(get_stop_distance(settings["DefaultSpeed"])*(( 2 / const_gravity / (1 / const_gravity + gradient)))).
+    SET slopeSpeed TO SQRT(get_stop_distance(settings["DefaultSpeed"],0)*(( 2 / const_gravity / (1 / const_gravity + gradient)))).
   }
 
   if runmode <> 12 {
@@ -473,7 +480,8 @@ until runmode = -1 {
     PRINT Runmode + spc AT (20, 27).
     PRINT AG1 + "   " AT (20, 28).
 
-    PRINT ROUND( logging["Odometer"], 1) + "km" spc AT (20, 30).
+    PRINT ROUND( logging["Odometer"]/1000, 1) + "km" + spc AT (20, 30).
+    PRINT ROUND( chargeLevel, 1) + "%" + spc AT (20, 31).
   }
 
   SET looptime TO TIME:SECONDS - loopEndTime.
@@ -481,7 +489,7 @@ until runmode = -1 {
 
   SET logging["Odometer"] TO logging["Odometer"] + (GROUNDSPEED * looptime).
   if TIME:SECONDS > nextWrite {
-    WRITEJSON(logging,"1:/config/logging.json").
+    WRITEJSON(logging,"1:/config/log.json").
     SET nextWrite TO TIME:SECONDS + 10.
   }
   WAIT 0. //  We only need to run an iteration once per physics tick.  Ensure that we pause until the next tick.
@@ -513,6 +521,7 @@ until runmode = -1 {
       PRINT "Cruise Control  :" AT (2,28).
 
       PRINT "Odometer        :" AT (2,30).
+      PRINT "Electric        :" AT (2,31).
     }
 
     FUNCTION nav_marker {
@@ -563,8 +572,8 @@ until runmode = -1 {
     }
 
     FUNCTION get_stop_distance{
-      PARAMETER speed.
-      return speed^2 / ( 2 * const_gravity * ( 1 / const_gravity + gradient)).
+      PARAMETER speed, gr IS gradient.
+      return speed^2 / ( 2 * const_gravity * ( 1 / const_gravity + gr)).
     }
 
     FUNCTION next_waypoint

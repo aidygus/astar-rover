@@ -61,7 +61,8 @@ Managing the rover is done through Terminal Input with these commands:
 
     n/N           - Navigate to next waypoint
 
-    s/S           - Run the setup utility stored on Archive.
+    c/C           - Run the configuration utility stored on Archive.
+    s/S           - Perform Science experiments
 
     Enter/return  - Execute astar path finding algorythm to destination
 

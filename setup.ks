@@ -19,7 +19,7 @@ LOCAL default_values IS LEXICON(
     "MaxSlope", LIST(1,0,45),
     "IPU", LIST(500,500,2000),
     "DefaultSpeed", LIST(1,1,50),
-    "TurnLimit", LIST(0.01,0.1,0.5)
+    "TurnLimit", LIST(0.01,0.01,2.0)
 ).
 
 if EXISTS("1:/config/settings.json") = FALSE {
@@ -131,9 +131,9 @@ FUNCTION initiate {
     SET y TO report("15 kbytes is required to run scripts localy.   - Skipping",5,y).
   } else {
     SET y TO report("Checking if asrover directory exists",2,y).
-    IF EXISTS("1:/asrover") = FALSE {
+    IF EXISTS("1:/astar-rover") = FALSE {
       SET y TO report(" - Creating asrover directory.",6,y).
-      CREATEDIR("1:/asrover").
+      CREATEDIR("1:/astar-rover").
     }
     report("Compiling rover script",5,y).
     COMPILE "0:/astar-rover/rover.ks" TO "1:/astar-rover/rover.ksm".
@@ -144,14 +144,16 @@ FUNCTION initiate {
     PRINT ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free" AT (5,y).
   }
   SET y TO report("Checking if boot directory exists",2,y).
-  IF EXISTS("1:/boot") = FALSE {
-    SET y TO report(" - Creating boot directory.",6,y).
-    CREATEDIR("1:/boot").
-    SET y TO report(" - Copying boot file.",6,y).
-    COPYPATH("0:/astar-rover/config/runrover.ks","1:/boot/runrover.ks").
-    SET y TO report(" - Setting boot file to run at startup.",6,y).
-    SET CORE:PART:GETMODULE("kOSProcessor"):BOOTFILENAME TO "/boot/runrover.ks".
+  IF EXISTS("1:/boot") {
+    DELETEPATH("1:/boot").
   }
+  SET y TO report(" - Creating boot directory.",6,y).
+  CREATEDIR("1:/boot").
+  SET y TO report(" - Copying boot file.",6,y).
+  COPYPATH("0:/astar-rover/config/runrover.ks","1:/boot/runrover.ks").
+  SET y TO report(" - Setting boot file to run at startup.",6,y).
+  SET CORE:PART:GETMODULE("kOSProcessor"):BOOTFILENAME TO "/boot/runrover.ks".
+
   SET y TO report("Checking if config directory exists",2,y).
   IF EXISTS("1:/config") = FALSE {
     SET y TO report(" - Creating config directory.",5,y).

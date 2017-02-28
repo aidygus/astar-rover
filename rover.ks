@@ -131,12 +131,22 @@ until runmode = -1 {
 
   SET facvec TO SHIP:FACING.
 
-  IF ((ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE) OR chargeLevel < 20) AND runmode <> 12 {
-    SET runmode TO 12.
-    set_speed(0).
+  IF chargeLevel < 20 AND runmode <> 13 {
+    set_speed(0,13).
     BRAKES ON.
     SET brakesOn TO TRUE.
-  } else if ((ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP)) OR chargeLevel > 20) AND runmode = 12 {
+  } else if chargeLevel > 20 AND runmode = 13 {
+    if route:LENGTH <> 0 {
+      restore_speed().
+      SET brakesOn TO FALSE.
+      SET WARP TO 0.
+    }
+    SET lastEvent TO TIME:SECONDS.
+  } ELSE IF (ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE) AND runmode <> 12 {
+    set_speed(0,12).
+    BRAKES ON.
+    SET brakesOn TO TRUE.
+  } else if (ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP)) AND runmode = 12 {
     SET runmode TO 0.
     if route:LENGTH <> 0 {
       restore_speed().
@@ -145,6 +155,7 @@ until runmode = -1 {
     }
     SET lastEvent TO TIME:SECONDS.
   }
+
 
   LOCAL predicted1 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5))).
   LOCAL predicted2 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5)+1)).
@@ -156,11 +167,7 @@ until runmode = -1 {
 
   SET stopDistance TO get_stop_distance(GROUNDSPEED+0.5).
 
-  if ABS(GROUNDSPEED) > 0.1 {
-    SET slopeSpeed TO SQRT(get_stop_distance(settings["DefaultSpeed"],0)*(( 2 / const_gravity / (1 / const_gravity + gradient)))).
-  }
-
-  if runmode <> 12 {
+  if runmode <> 13 AND runmode <> 12 {
     if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1 {
       // IF runmode = 0 { //Govern the rover
 
@@ -174,8 +181,8 @@ until runmode = -1 {
         if pangle > 5 {          //
           SET runmode TO 2.
           set_speed(1).
-        } else if angle < settings["MinSlope"] AND runmode <> 4 {
-          LOCK targetspeed TO slopeSpeed.
+        } else if angle < settings["MinSlope"] AND runmode <> 4 AND ABS(GROUNDSPEED) > 0 {
+          SET targetspeed TO get_slope_speed().
           // set_speed(3).
           SET runmode TO 4.
         } else if ABS(headingDifference) > 40 AND targetspeed = lastTargetSpeed AND runmode <> 2 AND runmode <> 4 {
@@ -206,9 +213,13 @@ until runmode = -1 {
           restore_speed().
           SET runmode TO 0.
         }
-      } else if runmode = 4 AND angle > settings["MinSlope"] {
-        UNLOCK targetspeed.
-        restore_speed().
+      } else if runmode = 4 {
+        if angle > settings["MinSlope"] {
+          SET targetspeed TO get_slope_speed().
+        } else {
+          restore_speed().
+          SET runmode TO 0.
+        }
       } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 {
         restore_speed().
         SET runmode TO 0.
@@ -482,6 +493,8 @@ until runmode = -1 {
 
     PRINT ROUND( logging["Odometer"]/1000, 1) + "km" + spc AT (20, 30).
     PRINT ROUND( chargeLevel, 1) + "%" + spc AT (20, 31).
+
+    PRINT ROUND( get_slope_speed(), 2) + spc AT (20,34).
   }
 
   SET looptime TO TIME:SECONDS - loopEndTime.
@@ -522,6 +535,8 @@ until runmode = -1 {
 
       PRINT "Odometer        :" AT (2,30).
       PRINT "Electric        :" AT (2,31).
+
+      PRINT "Slope Speed     :" AT (2,34).
     }
 
     FUNCTION nav_marker {
@@ -559,10 +574,13 @@ until runmode = -1 {
 
     FUNCTION set_speed
     {
-      PARAMETER spd.
+      PARAMETER spd, mode is -1.
       if spd < targetspeed {
         SET lastTargetSpeed TO targetspeed.
         SET targetspeed TO spd.
+      }
+      if mode <> -1 {
+        SET runmode TO mode.
       }
     }
 
@@ -574,6 +592,13 @@ until runmode = -1 {
     FUNCTION get_stop_distance{
       PARAMETER speed, gr IS gradient.
       return speed^2 / ( 2 * const_gravity * ( 1 / const_gravity + gr)).
+    }
+    FUNCTION get_slope_speed {
+      if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
+        return SQRT(get_stop_distance(settings["DefaultSpeed"],0)*(((1 / const_gravity + gradient) / const_gravity / 2))).
+      } else {
+        return 1.
+      }
     }
 
     FUNCTION next_waypoint

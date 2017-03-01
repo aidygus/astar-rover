@@ -1,4 +1,4 @@
-LOCAL runmode IS 0.
+LOCAL serunmode IS 0.
 
 // Valid runmodes
 //  0 - Main Menu
@@ -50,25 +50,25 @@ main_hud().
 
 SET row TO "----------------------------------------------".
 
-UNTIL runmode = -1 {
-  PRINT "Runmode : " + runmode AT (2,TERMINAL:HEIGHT-2).
+UNTIL serunmode = -1 {
+  PRINT "Runmode : " + serunmode AT (2,TERMINAL:HEIGHT-2).
   IF TERMINAL:INPUT:HASCHAR {
     LOCAL K IS TERMINAL:INPUT:GETCHAR().
     LOCAL N IS K:TONUMBER(-99).
-    IF runmode = 1 {
-      SET runmode TO 0.
+    IF serunmode = 1 {
+      SET serunmode TO 0.
       main_hud().
     }
     IF K = TERMINAL:INPUT:ENDCURSOR {
-      SET runmode TO -1.
+      SET serunmode TO -1.
       CLEARSCREEN.
     } else IF K = TERMINAL:INPUT:HOMECURSOR {
-      SET runmode TO 0.
+      SET serunmode TO 0.
       main_hud().
-    } else if (runmode = 2) {
+    } else if (serunmode = 2) {
       handler_settings(K,N).
     } ELSE IF N <> -99 {
-      if runmode = 0 {
+      if serunmode = 0 {
           handler_hud(N).
       }
     }
@@ -92,7 +92,7 @@ FUNCTION main_hud {
 
 FUNCTION handler_hud {
   PARAMETER N.
-  SET runmode TO N.
+  SET serunmode TO N.
   if N = 1 {
     initiate().
   } else if N = 2 {
@@ -102,7 +102,7 @@ FUNCTION handler_hud {
   } else if N = 9 {
     reset().
   } else {
-    SET runmode TO 0.
+    SET serunmode TO 0.
   }
 }
 
@@ -227,5 +227,5 @@ FUNCTION reset {
   DELETEPATH("1:/config").
   report("Rover has been reset",2,4).
   report("Press Home key to continue",2,5).
-  SET runmode TO 0.
+  SET serunmode TO 0.
 }

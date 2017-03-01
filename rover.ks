@@ -401,6 +401,7 @@ until runmode = -1 {
     ELSE IF K:TOUPPER = "C" {
       runpath("0:/astar-rover/setup").
       SET settings TO READJSON("1:/config/settings.json").
+      display_HUD().
     }
     ELSE IF K:TOUPPER = "S" {
       SET menu TO 2.
@@ -415,7 +416,9 @@ until runmode = -1 {
         SET runmode to 0.
         restore_speed().
       } else {
+        BRAKES ON.
         SET targetspeed TO 0.
+        SET wtVAL TO 0.
         SET brakesOn TO TRUE.
         SET runmode TO 7.
       }
@@ -470,9 +473,9 @@ until runmode = -1 {
       SET y TO y+1.
     }
   } else if menu = 0 {
-    PRINT ROUND( targetspeed, 1) + spc AT (20, 6).
-    PRINT ROUND( GROUNDSPEED) + spc AT (20, 7).
-    PRINT round(__goal:DISTANCE) + spc AT (20, 8).
+    PRINT ROUND( targetspeed, 1) + " m/s" spc AT (20, 6).
+    PRINT ROUND( GROUNDSPEED) + " m/s" + spc AT (20, 7).
+    PRINT round(__goal:DISTANCE/1000,2) + " km" + spc AT (20, 8).
 
     PRINT ROUND( targetheading, 2) + spc AT (20, 10).
     PRINT ROUND( cheading, 2) + spc AT (20, 11).
@@ -483,19 +486,19 @@ until runmode = -1 {
     }
     PRINT ROUND(__grid:DISTANCE, 2) + spc AT (20, 15).
     PRINT route:LENGTH + spc AT (20, 16).
-    PRINT rwaypoint + spc AT (20, 17).
+    PRINT (rwaypoint+1) + spc AT (20, 17).
 
     PRINT round(currentSlopeAngle,2) + spc AT (20,20).
     PRINT round(angle,2) + spc AT (20,21).
     PRINT round(pangle,2) + spc AT (20,22).
 
-    PRINT round(stopDistance,4) + spc AT (20,24).
+    PRINT round(stopDistance,2) + spc AT (20,24).
     PRINT round(gradient,4) + spc AT (20,25).
 
     PRINT Runmode + spc AT (20, 27).
     PRINT AG1 + "   " AT (20, 28).
 
-    PRINT ROUND( logging["Odometer"]/1000, 1) + "km" + spc AT (20, 30).
+    PRINT ROUND( logging["Odometer"]/1000, 1) + " km" + spc AT (20, 30).
     PRINT ROUND( chargeLevel, 1) + "%" + spc AT (20, 31).
     if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
       PRINT ROUND( get_slope_speed(), 2) + spc AT (20,34).

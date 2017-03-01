@@ -3,7 +3,7 @@
 // Updated with waypoint management by aidygus
 // License: GPLv3
 //
-// ThIS program provides waypoint functionality
+// ThiS program provides waypoint functionality
 // using an astar based algorythm to calculate
 // safest possible route from start to goal
 // and monitoring for fully automated rovers
@@ -38,6 +38,7 @@ SET AG9 TO FALSE.
 SET lockcounter TO 0.
 SET nextWaypointHeading TO 0.
 SET spc TO "      ".
+SET header TO "".
 
 SET overSpeedDownSlopeBrakeTime TO 0.3.
 SET extremeSlopeAngle TO 8.
@@ -85,7 +86,7 @@ SET runmode TO 0.
     //    1  Approaching Waymarker
     //    2  Change of slope angle ahead
     //    3  Moving away from waypoint
-    //    4  Very Steep Slope ahead.  Find alternative route.
+    //    4  Negotiating slope exceeding MinSlope (Depricated)
     //    5  Has hit an obstacle.
     //    6  Attempting to move round obstacle.
     //    7  Manual Hold
@@ -167,7 +168,7 @@ until runmode = -1 {
 
   SET stopDistance TO get_stop_distance(GROUNDSPEED+0.5).
 
-  if runmode <> 13 AND runmode <> 12 {
+  if runmode <> 13 AND runmode <> 12 AND runmode <> 7 {
     if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1 {
       // IF runmode = 0 { //Govern the rover
 
@@ -178,14 +179,10 @@ until runmode = -1 {
         SET runmode TO 5.
         SET lastEvent TO TIME:SECONDS.
       } else {
-        if pangle > 5 {          //
+        if pangle > 5 {  // Predicted slope change angle
           SET runmode TO 2.
           set_speed(1).
-        } else if angle < settings["MinSlope"] AND runmode <> 4 AND ABS(GROUNDSPEED) > 0 {
-          SET targetspeed TO get_slope_speed().
-          // set_speed(3).
-          SET runmode TO 4.
-        } else if ABS(headingDifference) > 40 AND targetspeed = lastTargetSpeed AND runmode <> 2 AND runmode <> 4 {
+        } else if ABS(headingDifference) > 40 AND targetspeed = settings["DefaultSpeed"] AND runmode <> 2 AND runmode <> 5 AND runmode <> 6 {
           set_speed(1).
           SET runmode TO 3.
         }
@@ -210,13 +207,6 @@ until runmode = -1 {
           SET waypointcounter TO rwaypoint.
         }
         if ABS(headingDifference) < 10 {
-          restore_speed().
-          SET runmode TO 0.
-        }
-      } else if runmode = 4 {
-        if angle > settings["MinSlope"] {
-          SET targetspeed TO get_slope_speed().
-        } else {
           restore_speed().
           SET runmode TO 0.
         }
@@ -248,14 +238,20 @@ until runmode = -1 {
         start_navigation().
       } else {
         if AG1 {
-          PRINT "---{   Rover has arrived at location  }---         " + spc AT (2,1).
+          SET header TO "---{   Rover has arrived at location  }---         " + spc.
+          PRINT header AT (2,1).
           SET targetspeed TO 0.
           BRAKES ON.
           UNLOCK targetheading.
         } else {
-          PRINT"---{   Manual controle   }---" + spc AT (2,1).
+          SET header TO "---{   Manual control   }---" + spc + spc + spc.
+          PRINT header AT (2,1).
         }
       }
+    }
+
+    if angle <= 5 {
+      SET targetspeed TO get_slope_speed().
     }
   }
 
@@ -351,7 +347,8 @@ until runmode = -1 {
         navpoints:REMOVE(0).
       }
       start_navigation().
-      PRINT "  ---{   Navigating to LAT " + round(__goal:LAT,1) +" : LNG " + round(__goal:LNG,1) +  "   }---" AT (0,1).
+      SET header TO "  ---{   Navigating to LAT " + round(__goal:LAT,1) +" : LNG " + round(__goal:LNG,1) +  "   }---" + spc + spc.
+      PRINT header AT (0,1).
     }
     ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR {
       SET targetspeed TO targetspeed + 0.5.
@@ -374,6 +371,11 @@ until runmode = -1 {
         SET route TO LIST().
         SET rwaypoint TO -1.
       }
+    }
+    ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
+      SET runmode TO -1.
+      CLEARVECDRAWS().
+      SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
     }
     ELSE IF K:TOUPPER = "I" {
       navpoints:ADD(__goal).
@@ -416,11 +418,7 @@ until runmode = -1 {
         SET runmode TO 7.
       }
     }
-    ELSE IF K = TERMINAL:INPUT:ENDCURSOR {
-      SET runmode TO -1.
-      CLEARVECDRAWS().
-      SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
-    } ELSE IF N <> -99 {
+    ELSE IF N <> -99 {
       if menu = 2 {
         do_science(N).
         display_HUD().
@@ -433,7 +431,8 @@ until runmode = -1 {
           if route:LENGTH <> 0 {
             SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
             start_navigation().
-            PRINT "  ---{   Navigating to " + w:NAME +"   }---" AT (0,1).
+            SET header TO "  ---{   Navigating to " + w:NAME +"   }---".
+            PRINT header AT (0,1).
             CLEARVECDRAWS().
           } else {
             display_HUD().
@@ -511,6 +510,7 @@ until runmode = -1 {
 
     FUNCTION display_HUD {
       CLEARSCREEN.
+      PRINT header AT (0,1).
       PRINT "Target Speed    :" AT (2,6).
       PRINT "Surface Speed   :" AT (2,7).
       PRINT "Distance to goal:" AT (2,8).

@@ -351,17 +351,19 @@ until runmode = -1 {
       PRINT header AT (0,1).
     }
     ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR {
-      SET targetspeed TO targetspeed + 0.5.
+      SET settings["DefaultSpeed"] TO settings["DefaultSpeed"] + 0.5.
+      SET targetspeed TO settings["DefaultSpeed"].
       update_setting("DefaultSpeed",targetspeed).
       SET lasttargetspeed TO targetspeed.
       }
     ELSE if K = TERMINAL:INPUT:PAGEDOWNCURSOR {
-      SET targetspeed TO targetspeed - 0.5.
+      SET settings["DefaultSpeed"] TO settings["DefaultSpeed"] - 0.5.
+      SET targetspeed TO settings["DefaultSpeed"].
       update_setting("DefaultSpeed",targetspeed).
       SET lastTargetSpeed TO targetspeed.
     }
     ELSE IF K = TERMINAL:INPUT:HOMECURSOR {
-      if runmode = 11 {
+      if menu <> 0 {
         SET runmode TO 0.
         display_HUD().
       } else {
@@ -417,6 +419,9 @@ until runmode = -1 {
         SET brakesOn TO TRUE.
         SET runmode TO 7.
       }
+    }
+    ELSE IF K:TOUPPER = "V" {
+      CLEARVECDRAWS().
     }
     ELSE IF N <> -99 {
       if menu = 2 {

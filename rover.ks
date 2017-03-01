@@ -396,7 +396,7 @@ until runmode = -1 {
     }
     ELSE IF K:TOUPPER = "C" {
       runpath("0:/astar-rover/setup").
-      REBOOT.
+      SET settings TO READJSON("1:/config/settings.json").
     }
     ELSE IF K:TOUPPER = "S" {
       SET menu TO 2.
@@ -493,8 +493,9 @@ until runmode = -1 {
 
     PRINT ROUND( logging["Odometer"]/1000, 1) + "km" + spc AT (20, 30).
     PRINT ROUND( chargeLevel, 1) + "%" + spc AT (20, 31).
-
-    PRINT ROUND( get_slope_speed(), 2) + spc AT (20,34).
+    if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
+      PRINT ROUND( get_slope_speed(), 2) + spc AT (20,34).
+    }
   }
 
   SET looptime TO TIME:SECONDS - loopEndTime.
@@ -591,14 +592,22 @@ until runmode = -1 {
 
     FUNCTION get_stop_distance{
       PARAMETER speed, gr IS gradient.
-      return speed^2 / ( 2 * const_gravity * ( 1 / const_gravity + gr)).
+      if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
+        return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
+      }
+      return 1.
     }
     FUNCTION get_slope_speed {
-      if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
-        return SQRT(get_stop_distance(settings["DefaultSpeed"],0)*(((1 / const_gravity + gradient) / const_gravity / 2))).
-      } else {
-        return 1.
-      }
+      return MAX(1,MIN(targetspeed, targetspeed - (targetspeed/ABS(angle)))).
+      // if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
+      //   return SQRT(
+      //     get_stop_distance(
+      //       settings["DefaultSpeed"],0) *
+      //       (1 / const_gravity + gradient)
+      //        / const_gravity / 2).
+      // } else {
+      //   return 1.
+      // }
     }
 
     FUNCTION next_waypoint

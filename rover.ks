@@ -592,22 +592,21 @@ until runmode = -1 {
 
     FUNCTION get_stop_distance{
       PARAMETER speed, gr IS gradient.
-      if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
-        return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
-      }
-      return 1.
+      return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
+
     }
     FUNCTION get_slope_speed {
-      return MAX(1,MIN(targetspeed, targetspeed - (targetspeed/ABS(angle)))).
-      // if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
-      //   return SQRT(
-      //     get_stop_distance(
-      //       settings["DefaultSpeed"],0) *
-      //       (1 / const_gravity + gradient)
-      //        / const_gravity / 2).
-      // } else {
-      //   return 1.
-      // }
+      return SQRT(
+          MAX(1,
+            get_stop_distance(settings["DefaultSpeed"],0)
+            *
+            (
+              ( 2 * const_gravity )
+              *
+              (1 / const_gravity + gradient)
+            )
+          )
+        ).
     }
 
     FUNCTION next_waypoint

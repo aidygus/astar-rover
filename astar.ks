@@ -347,3 +347,10 @@ FUNCTION clear_down {
   gscore:CLEAR.
   camefrom:CLEAR.
 }
+
+FUNCTION center {
+  PARAMETER string,y.
+
+  LOCAL x IS ROUND(TERMINAL:WIDTH / 2) - FLOOR(string:LENGTH / 2).
+  PRINT string AT (x,y).
+}

@@ -22,11 +22,7 @@ if input1 = "LATLNG" {
 }
 
 LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
-IF len > 160 {
 
-  SET TERMINAL:CHARWIDTH TO 4.
-  SET TERMINAL:CHARHEIGHT TO 4.
-}
 LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
 LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
 LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
@@ -35,8 +31,17 @@ CLEARSCREEN.
 PRINT "Initializing".
 PRINT "Graph Size   : " + len.
 PRINT "Starting Ref : " + sindex.
-SET TERMINAL:WIDTH TO len + 10.
-SET TERMINAL:HEIGHT TO len + 10.
+
+LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+IF len > 160 {
+  SET TERMINAL:WIDTH TO (len/2) + 10.
+  SET TERMINAL:HEIGHT TO (len/2) + 10.
+  SET TERMINAL:CHARWIDTH TO 4.
+  SET TERMINAL:CHARHEIGHT TO 4.
+} else {
+  SET TERMINAL:WIDTH TO len + 10.
+  SET TERMINAL:HEIGHT TO len + 10.
+}
 
 
 LOCAL map IS LEXICON().  // Node list
@@ -170,7 +175,7 @@ FUNCTION get_neighbours {
       // Continue and do nothing
     } else {
       if test_neighbour(current,ne,LIST(gridx,gridy)) {
-        LOCAL tentative_gscore IS gscore[current[0]+","+current[1]] + 1.
+        LOCAL tentative_gscore IS gscore[current[0]+","+current[1]] + 1 + map[neighbour]["WEIGHT"].
           //  We don't want to fall off the grid!
         if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
           if openset:HASKEY(neighbour) = FALSE {
@@ -234,6 +239,7 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
+  LOCAL weight TO 0.
   if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
@@ -245,8 +251,10 @@ FUNCTION test_neighbour{
   } else {
     if angle <= settings["MinSlope"] {
       PRINT "v" AT (printat[0],printat[1]).
+      SET weight TO 1.
     } else {
       PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+      SET weight TO 1.
     }
   }
   // Update the graph with what we've discovered about this cell.
@@ -256,7 +264,8 @@ FUNCTION test_neighbour{
     "LNG",grid:LNG,
     "TERRAINHEIGHT",grid:TERRAINHEIGHT,
     "POSITION",grid:POSITION,
-    "FSCORE",0
+    "FSCORE",0,
+    "WEIGHT",weight
   ).
   if setlist = 1 {
     return TRUE.

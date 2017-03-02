@@ -1,6 +1,6 @@
 # Asrover (Astar Rover)
 
-This project started out as a proof of concept to see if it would be possible to apply an A* (A star) [A* (A Star)](https://en.wikipedia.org/wiki/A*_search_algorithm) style path finding algorythm to a 3D space environment such as KSP planets.  The script works by mathematically disecting the world into a grid where each cell is roughly 100m per side and attempting to validate if a viable safe route exists by setting what could be considered as safe Maximum and Minimum slopes to negotiate then comparing the calculated slope value between the current cell and neighbour. There are no knowns and all validations are performed on the fly. While calculating the script will display on the screen it's results.
+This project started out as a proof of concept to see if it would be possible to apply an [A* (A Star)](https://en.wikipedia.org/wiki/A*_search_algorithm) style path finding algorythm to a 3D space environment such as KSP planets.  The script works by mathematically disecting the world into a grid where each cell is roughly 100m per side and attempting to validate if a viable safe route exists by setting what could be considered as safe Maximum and Minimum slopes to negotiate then comparing the calculated slope value between the current cell and neighbour. There are no knowns and all validations are performed on the fly. While calculating the script will display on the screen it's results.
 
 Key
 
@@ -36,7 +36,7 @@ This setup script can be ran with **runpath("0:/astar-rover/setup").**.
 
 If you run the /astar-rover/rover.ks on a rover that hasn't been set up yet, this utility will be called allowing you to customize how the rover behaves.  The setup can be ran at any time by pressing C in the terminal window.
 
-The rover script can be ran from either the local processor or from the archive, but the configuration settings will be store locally to the rover so you can run from archive with multiple rovers and have each with their own settings.
+The rover script can be ran from either the local processor or from the archive, but the configuration settings and logging information will be store locally to the rover so you can run from archive with multiple rovers and have each with their own settings.
 
 In order to run the script locally you will need 20k space on the KOS processor to store the compiled scripts and configuration settings.
 
@@ -56,6 +56,10 @@ If you want to run the rover from the local kOSProcessor rather than from Archiv
 
 Tag all parts that contain Experiments with **Skience** and if you select that menu, it will display a list of parts which you can select.  The rover will then run the experiment and transmit it to KSC.  Handy for contract situations where you may have to run the same experiment 4 or 5 times.  Currently supports stock and DMModuleScienceAnimate part.
 
+### Odometer
+
+Will keep a record of the distance the rover has travelled.
+
 ## Input Keys
 
 Managing the rover is done through Terminal Input with these commands:
@@ -65,7 +69,7 @@ Managing the rover is done through Terminal Input with these commands:
     Left arrow    - Decrease Longitude by 0.1 degrees
     Right arrow   - Increase Longitued by 0.1 degrees
 
-    HOME          - Return arrow vector to vehicle
+    HOME          - Return arrow vector to vehicle or return to main display if on a sub feature
     END           - Exit the rover manager
 
     i/I           - Mark the first waypoint for a multi stage journey
@@ -73,7 +77,17 @@ Managing the rover is done through Terminal Input with these commands:
     w/W           - Display list of contract waypoints on current body
     1-9           - Select contract waypoint in list or science part
 
-    n/N           - Navigate to next waypoint
+    n/N           - Navigate to next waypoint in route
+
+    c/C           - Run the configuration utility stored on Archive.
+    s/S           - Perform Science experiments
+    r/R           - Refresh screen and display main HUD
+    v/V           - Clear Vectors from screen
+    h/H           - Come to a complete stop
+
+    c/C           - Run the configuration utility stored on Archive.
+    s/S           - Perform Science experiments
+    r/R           - Refresh screen and display main HUD
 
     c/C           - Run the configuration utility stored on Archive.
     s/S           - Perform Science experiments
@@ -86,17 +100,31 @@ Managing the rover is done through Terminal Input with these commands:
 
 ## Usage
 
-Clone this solution into the **KSP Root/Ships/Script** folder as it's own sub folder.  A simple git clone will suffice.
+Clone this solution into the **KSP Root/Ships/Script** folder keeping the files in their own sub folder.
 
-Due to the size of the scripts it's best to run from Archive unless you have a processor with enough storage (around 15K for both scripts compiled).
+Due to the size of the scripts it's best to run from Archive unless you have a processor with enough storage (around 20K for both scripts compiled).
 
 You can run the solution with
+
 * runpath("/astar-rover/rover").
+
 Or to run the setup utility
+
 * runpath("0:/astar-rover/setup").
+
+### Setup utility
+
+This feature can be ran directly or through the main rover screen by pressing *C*.  When changing from within the rover, the settings will be available straight away and you won't need to reboot.
+
+It can be used for the following functions :
+
+1. Initializing the rover by creating the config folder to store settings and logging information, a boot folder with the bootstrap file and if there is enough space (at least 20k) compile the scripts to the local processor store.
+2. Configure settings allows you to customize settings which will effect the way the rover behaves and finds routes.  It saves automatically when you change a value
+3. Reboot rover
+4. Reset to factory default will remove all astar-rover files from the local processor store
 
 ### Overhead
 
-Because the A* script is very process intensive it will temporarily increase the number of IPU (Instructions Per Update) that KOS can run per tick then restore it to the original value when the search is completed.  Leaving it at the default 150 will mean that finding routes will take a long time.  How many instructions can be ran can be configured in the setup utility in steps of 500, but it is reccomended to leave it at 2000 so that it can calculate the route in the shortest time.
+Because the A* script is very process intensive it will temporarily increase the number of IPU (Instructions Per Update) that KOS can run per physics tick then restore it to the original value when the search is completed.  Leaving it at the default 150 will mean that finding routes will take a long time.  How many instructions can be ran can be configured in the setup utility in steps of 500, but it is reccomended to leave it at 2000 so that it can calculate the route in the shortest time.
 
 The rover management script is designed to run one iterative loop per physics tick so shouldn't add much overhead while operating.

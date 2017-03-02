@@ -40,7 +40,9 @@ if EXISTS("1:/config/log.json") = FALSE {
     "Odometer",0,
     "MaxSpeed",0,
     "MaxSlope",0,
-    "MinSlope",0
+    "MinSlope",0,
+    "Route",LIST(),
+    "RouteWayPoint",0
   ).
   WRITEJSON(logging,"1:/config/log.json").
 } else {

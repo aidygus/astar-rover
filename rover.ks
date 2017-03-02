@@ -21,7 +21,7 @@ if EXISTS("1:/config/settings.json") = FALSE {
 
 lock turnlimit to min(1, (settings["TurnLimit"] * const_gravity) / SHIP:GROUNDSPEED). //Scale the
                    //turning radius based on __current speed
-SET TERMINAL:WIDTH TO 50.
+SET TERMINAL:WIDTH TO 60.
 SET TERMINAL:HEIGHT TO 40.
 SET looptime TO 0.01.
 SET loopEndTime TO TIME:SECONDS.
@@ -178,37 +178,38 @@ until runmode = -1 {
     SET stopDistance TO get_stop_distance(GROUNDSPEED+0.5).
 
 
-    if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1
+    if runmode <> 7
     {
-      // IF runmode = 0 { //Govern the rover
+      if route:LENGTH <> 0 AND rwaypoint <> -1  AND rwaypoint < route:LENGTH-1
+      {
+        // IF runmode = 0 { //Govern the rover
 
-      SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
-      SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
+        SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
+        SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
 
-      IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0  AND runmode <> 7 {
-        SET runmode TO 5.
-        SET lastEvent TO TIME:SECONDS.
-      } else {
-        if pangle > 5 {  // Predicted slope change angle
-          SET runmode TO 2.
-          set_speed(1).
-        } else if ABS(headingDifference) > 40 AND targetspeed = settings["DefaultSpeed"] AND runmode <> 2 AND runmode <> 5 AND runmode <> 6 {
-          set_speed(1).
-          SET runmode TO 3.
-        }
-        if __grid:DISTANCE < 20 + stopDistance AND ABS(headingDifference > 40) and rwaypoint <> 0 {
-          SET runmode TO 1.
-          if ABS(targetHeading - cHeading) > 40 {
+        IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0  AND runmode <> 7 {
+          SET runmode TO 5.
+          SET lastEvent TO TIME:SECONDS.
+        } else {
+          if pangle > 5 {  // Predicted slope change angle
+            SET runmode TO 2.
             set_speed(1).
-          } else {
-            set_speed(3).
+          } else if ABS(headingDifference) > 40 AND targetspeed = settings["DefaultSpeed"] AND runmode <> 2 AND runmode <> 5 AND runmode <> 6 {
+            set_speed(1).
+            SET runmode TO 3.
+          }
+          if __grid:DISTANCE < 20 + stopDistance AND ABS(headingDifference > 40) and rwaypoint <> 0 {
+            SET runmode TO 1.
+            if ABS(targetHeading - cHeading) > 40 {
+              set_speed(1).
+            } else {
+              set_speed(3).
+            }
+          }
+          if route[rwaypoint]:DISTANCE < MAX(20,stopDistance) {
+            next_waypoint(3).
           }
         }
-        if route[rwaypoint]:DISTANCE < MAX(20,stopDistance) {
-          next_waypoint(3).
-        }
-      }
-      if runmode <> 7 {
         if runmode = 2 AND pangle < 5 {
           SET runmode TO 0.
           restore_speed().
@@ -230,7 +231,7 @@ until runmode = -1 {
           LOCK targetHeading TO __grid:HEADING.
           SET runmode TO 3.
         }
-      } else {
+      }  else {
         IF navpoints:LENGTH <> 0 AND rwaypoint <> -1 {
           SET route TO LIST().
           SET targetspeed TO 0.
@@ -243,26 +244,23 @@ until runmode = -1 {
         } else {
           if AG1 {
             SET header TO "---{   Rover has arrived at location  }---         " + spc.
-            PRINT header AT (2,1).
+            center(header,1).
             SET targetspeed TO 0.
             BRAKES ON.
             UNLOCK targetheading.
             SET kTurn TO 0.
           } else {
             SET header TO "---{   Manual control   }---" + spc + spc + spc.
-            PRINT header AT (2,1).
+            center(header,1).
           }
         }
+        if angle < -4 AND runmode = 0 {
+          SET targetspeed TO get_slope_speed().
+        }
       }
-
-    if angle < -4 {
-      SET targetspeed TO get_slope_speed().
     }
-  }
 
-
-
-  IF targetspeed <> 0 OR runmode = 7 { //IF we should be going forward
+  IF targetspeed <> 0 { //IF we should be going forward
     if brakesOn = false {
       brakes off.
     }
@@ -360,7 +358,7 @@ until runmode = -1 {
       }
       start_navigation().
       SET header TO "---{   Navigating to LAT " + round(__goal:LAT,1) +" : LNG " + round(__goal:LNG,1) +  "   }---" + spc + spc.
-      PRINT header AT (2,1).
+      center(header,1).
     }
     ELSE IF K = TERMINAL:INPUT:PAGEUPCURSOR
     {
@@ -439,6 +437,11 @@ until runmode = -1 {
     ELSE IF K:TOUPPER = "V" {
       CLEARVECDRAWS().
     }
+    ELSE IF K:TOUPPER = "P" {
+      SET route TO LIST().
+      SET rwaypoint TO -1.
+      hold_poition(0).
+    }
     ELSE IF K = "," {
       SET KUNIVERSE:TIMEWARP:MODE TO "PHYSICS".
       SET WARP TO 0.
@@ -461,7 +464,7 @@ until runmode = -1 {
             SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
             start_navigation().
             SET header TO "  ---{   Navigating to " + w:NAME +"   }---".
-            PRINT header AT (0,1).
+            center(header,1).
             CLEARVECDRAWS().
           } else {
             display_HUD().
@@ -553,6 +556,8 @@ else
     if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
       PRINT ": " +  ROUND( get_slope_speed(), 2) + spc AT (18,34).
     }
+    PRINT ": " + round(kTurn,2) + spc AT (47,10).
+    PRINT ": " + round(wTval,2) + spc AT (47,11).
   }
 
   SET looptime TO TIME:SECONDS - loopEndTime.
@@ -568,7 +573,7 @@ else
 
     FUNCTION display_HUD {
       CLEARSCREEN.
-      PRINT header AT (0,1).
+      center(header,1).
       PRINT "Target Speed" AT (2,6).
       PRINT "Surface Speed" AT (2,7).
       PRINT "Distance to goal" AT (2,8).
@@ -596,6 +601,8 @@ else
       PRINT "Electric" AT (2,31).
 
       PRINT "Slope Speed" AT (2,34).
+      PRINT "kTurn" AT (40,10).
+      PRINT "wTval" AT (40,11).
     }
 
     FUNCTION display_battery
@@ -604,24 +611,13 @@ else
       PRINT "################################" AT (6,y).
       PRINT "#                              ###" AT (6,y+1).
       PRINT "################################" AT (6,y+2).
-
-      // IF batCount = 0 AND TIME:SECONDS - lastBat > 1 {
-      //   PRINT spc + spc + spc + spc AT (3,y+1).
-      //   SET batCount TO 1.
-      //   SET lastBat TO TIME:SECONDS.
-      // } else if (TIME:SECONDS - lastBat > 3 AND batCount = 1) OR batCount = 2 {
-        LOCAL p IS ROUND(chargeLevel / 3.3).
-        LOCAL b IS "".
-        FROM {local x is 0.} UNTIL x = p STEP {set x to x+1.} DO {
-          SET b TO b + "|".
-        }
-        PRINT b + spc AT (7,y+1).
-        // if batCount = 1 {
-        //   SET batCount TO 0.
-        // }
-        // SET lastBat TO TIME:SECONDS.
-      // }
-    }
+      LOCAL p IS ROUND(chargeLevel / 3.3).
+      LOCAL b IS "".
+      FROM {local x is 0.} UNTIL x = p STEP {set x to x+1.} DO {
+        SET b TO b + "|".
+      }
+      PRINT b + spc AT (7,y+1).
+  }
 
     FUNCTION nav_marker {
       SET vg TO VECDRAWARGS(
@@ -639,7 +635,7 @@ else
 
     FUNCTION start_navigation
     {
-      SET TERMINAL:WIDTH TO 50.
+      SET TERMINAL:WIDTH TO 60.
       SET TERMINAL:HEIGHT TO 40.
       CLEARSCREEN.
       SET logging["Route"] TO route.
@@ -735,13 +731,15 @@ else
     {
       PARAMETER N.
       LOCAL sp IS get_science_parts().
-      LOCAL sc TO sp[N-1].
-      LOCAL mods IS sc:MODULES.
-      FOR mo IN mods {
-        if mo = "ModuleScienceExperiment"{
-          transmit_science(sc:GETMODULE("ModuleScienceExperiment")).
-        } else if mo = "DMModuleScienceAnimate" {
-          transmit_science(sc:GETMODULE("DMModuleScienceAnimate")).
+      if sp:LENGTH < N {
+        LOCAL sc TO sp[N-1].
+        LOCAL mods IS sc:MODULES.
+        FOR mo IN mods {
+          if mo = "ModuleScienceExperiment"{
+            transmit_science(sc:GETMODULE("ModuleScienceExperiment")).
+          } else if mo = "DMModuleScienceAnimate" {
+            transmit_science(sc:GETMODULE("DMModuleScienceAnimate")).
+          }
         }
       }
     }
@@ -760,7 +758,6 @@ else
       PRINT "Transmitting Science" AT (2,12).
       WAIT UNTIL M:HASDATA.
       M:TRANSMIT.
-      M:RESET.
     }
 
     FUNCTION hold_poition

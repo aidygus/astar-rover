@@ -85,9 +85,8 @@ Managing the rover is done through Terminal Input with these commands:
     v/V           - Clear Vectors from screen
     h/H           - Come to a complete stop
 
-    c/C           - Run the configuration utility stored on Archive.
-    s/S           - Perform Science experiments
-    r/R           - Refresh screen and display main HUD
+    .             - Increase physics warp to 1
+    ,             - Reset physics warp back to 0.
 
     Enter/return  - Execute astar path finding algorythm to destination
 

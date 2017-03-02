@@ -69,7 +69,7 @@ clear_down().
 if route:LENGTH = 0 {
   PRINT "---{  Route can not be found  }---" AT (2,1).
 }
-SET TERMINAL:WIDTH TO 50.
+SET TERMINAL:WIDTH TO 60.
 SET TERMINAL:HEIGHT TO 40.
 SET CONFIG:IPU TO current_ipu.
 SET TERMINAL:CHARWIDTH TO charSize[1].
@@ -239,7 +239,6 @@ FUNCTION test_neighbour{
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
-  LOCAL weight TO 0.
   if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 {
       PRINT "." AT (printat[0],printat[1]).
       place_marker(grid,yellow,5,100,round(angle),0.05).
@@ -251,10 +250,8 @@ FUNCTION test_neighbour{
   } else {
     if angle <= settings["MinSlope"] {
       PRINT "v" AT (printat[0],printat[1]).
-      SET weight TO 1.
     } else {
       PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
-      SET weight TO 1.
     }
   }
   // Update the graph with what we've discovered about this cell.
@@ -265,7 +262,7 @@ FUNCTION test_neighbour{
     "TERRAINHEIGHT",grid:TERRAINHEIGHT,
     "POSITION",grid:POSITION,
     "FSCORE",0,
-    "WEIGHT",weight
+    "WEIGHT",FLOOR(ABS(angle/2))    //  Weight the probibility of a valid route against the angle from current to this neighbour
   ).
   if setlist = 1 {
     return TRUE.

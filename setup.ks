@@ -11,6 +11,7 @@ LOCAL serunmode IS 0.
 
 CLEARSCREEN.
 
+RUNPATH("0:/astar-rover/libs.ks").
 LOCAL settings IS LEXICON().
 LOCAL error IS "".
 LOCAL value IS -1.
@@ -55,6 +56,7 @@ SET row TO "----------------------------------------------".
 UNTIL serunmode = -1 {
   PRINT "Runmode : " + serunmode AT (2,TERMINAL:HEIGHT-2).
   IF TERMINAL:INPUT:HASCHAR {
+    LOCAL s IS "blip".
     LOCAL K IS TERMINAL:INPUT:GETCHAR().
     LOCAL N IS K:TONUMBER(-99).
     IF serunmode = 1 {
@@ -73,8 +75,11 @@ UNTIL serunmode = -1 {
       if serunmode = 0 {
           handler_hud(N).
       }
+    } else {
+      SET s TO "error".
     }
     PRINT "Key " + K + " pressed" AT (2,TERMINAL:HEIGHT-1).
+    play_sounds(s).
   }
   WAIT 0.
 }
@@ -135,6 +140,7 @@ FUNCTION settings_hud {
 
 FUNCTION initiate {
   CLEARSCREEN.
+  play_sounds("blip").
   LOCAL y IS 4.
   center("---{ Initializing your rover }---",2).
   SET y TO report("Switching to rover's local Volume",2,y).
@@ -173,6 +179,7 @@ FUNCTION initiate {
     SET y TO report(" - Creating config directory.",5,y).
     CREATEDIR("1:/config").
   }
+  COPYPATH("0:/astar-rover/config/soundpack.json","1:/config/soundpack.json").
   SET y TO report("Initialization process completed ",2,y+2).
   SET y TO report(ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free",5,y).
   SET y TO report("To customize how the rover operates, change them in the settings menu",2,y+2).
@@ -185,13 +192,6 @@ FUNCTION report {
   WAIT 0.2.
   SET y TO y + 1.
   return y.
-}
-
-FUNCTION center {
-  PARAMETER string,y.
-
-  LOCAL x IS ROUND(TERMINAL:WIDTH / 2) - FLOOR(string:LENGTH / 2).
-  PRINT string AT (x,y).
 }
 
 FUNCTION handler_settings {

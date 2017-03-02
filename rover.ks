@@ -20,7 +20,7 @@ if EXISTS("1:/config/settings.json") = FALSE {
   SET logging TO READJSON("1:/config/log.json").
 }
 
-lock turnlimit to min(1, (settings["TurnLimit"] * const_gravity) / SHIP:GROUNDSPEED). //Scale the
+lock turnlimit to min(1, settings["TurnLimit"] / SHIP:GROUNDSPEED). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
@@ -113,6 +113,7 @@ ON AG1 {
     }
   } else {
     CLEARVECDRAWS().
+    SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
   }
   PRESERVE.
 }
@@ -189,15 +190,15 @@ until runmode = -1 {
       IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0  AND runmode <> 7 {
         SET runmode TO 5.
         SET lastEvent TO TIME:SECONDS.
-        play_sounds("alert").
       } else {
-        if pangle > 5 {  // Predicted slope change angle
+        if ABS(pangle) > 5 {  // Predicted slope change angle
           SET runmode TO 2.
           set_speed(1).
           play_sounds("slopealert").
         } else if ABS(headingDifference) > 40 AND targetspeed = settings["DefaultSpeed"] AND runmode <> 2 AND runmode <> 5 AND runmode <> 6 {
           play_sounds("direction").
-          set_speed(1).
+          // set_speed(1).
+          SET targetspeed TO 1.
           SET runmode TO 3.
         }
         if __grid:DISTANCE < 20 + stopDistance AND ABS(headingDifference > 40) and rwaypoint <> 0 {
@@ -213,7 +214,7 @@ until runmode = -1 {
         }
       }
       if runmode <> 7 {
-        if runmode = 2 AND pangle < 5 {
+        if runmode = 2 AND ABS(pangle) < 5 {
           SET runmode TO 0.
           restore_speed().
         } else if runmode = 3 {
@@ -222,6 +223,7 @@ until runmode = -1 {
             SET runmode TO 0.
           }
         } else if runmode = 5 AND ROUND(GROUNDSPEED) = 0 AND (TIME:SECONDS - lastEvent) > 5 {
+          play_sounds("alert").
           SET targetspeed TO -1.
           LOCK targetHeading TO (__grid:HEADING - 90).
         } else if runmode = 5 AND ABS(GROUNDSPEED) > 0 AND (TIME:SECONDS - lastEvent) > 10 {
@@ -259,7 +261,7 @@ until runmode = -1 {
         }
       }
 
-    if angle < -4 {
+    if angle < -4 AND runmode = 0 {
       SET targetspeed TO get_slope_speed().
     }
   }
@@ -494,7 +496,9 @@ else
 }
 
   SET SHIP:CONTROL:WHEELTHROTTLE TO WTVAL.
-  SET SHIP:CONTROL:WHEELSTEER TO kTurn.
+  // if AG1 = FALSE {
+    SET SHIP:CONTROL:WHEELSTEER TO kTurn.
+  // }
 
   if menu = 1 {
     PRINT "Press a number to select a waypoint" AT (2, 3).
@@ -558,6 +562,9 @@ else
     if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
       PRINT ": " +  ROUND( get_slope_speed(), 2) + spc AT (18,34).
     }
+
+    PRINT ": " + ROUND(wtVAL,3) + spc AT (40,10).
+    PRINT ": " + ROUND(kTurn,3) + spc AT (40,11).
   }
 
   SET looptime TO TIME:SECONDS - loopEndTime.
@@ -601,6 +608,8 @@ FUNCTION display_HUD {
   PRINT "Electric" AT (2,31).
 
   PRINT "Slope Speed" AT (2,34).
+  PRINT "wTVAL" AT (35,10).
+  PRINT "kTurn" AT (35,11).
 }
 
 FUNCTION display_battery
@@ -642,6 +651,7 @@ FUNCTION start_navigation
   SET rwaypoint TO 1.
   if route:LENGTH <> 0 {
     SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
+    // LOCK WHEELSTEERING TO __grid:HEADING.
     LOCK targetHeading TO __grid:HEADING.
     SET AG1 TO TRUE.
     restore_speed().
@@ -690,6 +700,7 @@ FUNCTION next_waypoint
   SET rwaypoint TO rwaypoint + 1.
   if rwaypoint < route:LENGTH {
     SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
+    // LOCK WHEELSTEERING TO __grid:HEADING.
     LOCK targetHeading TO __grid:HEADING.
     SET runmode TO mode.
   } else {

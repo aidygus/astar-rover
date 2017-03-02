@@ -79,7 +79,6 @@ UNTIL serunmode = -1 {
       SET s TO "error".
     }
     PRINT "Key " + K + " pressed" AT (2,TERMINAL:HEIGHT-1).
-    play_sounds(s).
   }
   WAIT 0.
 }
@@ -199,6 +198,7 @@ FUNCTION handler_settings {
   LOCAL set IS LIST(3,5,7,9,11).
   LOCAL keys IS settings:KEYS.
   IF N <> -99 {
+    play_sounds("blip").
     FOR s IN set {
       PRINT " " AT (26,s).
     }
@@ -218,6 +218,7 @@ FUNCTION handler_settings {
       }
       PRINT settings[keys[value-1]]+"    " AT (28,set[value-1]).
       WRITEJSON(settings,"1:/config/settings.json").
+      play_sounds("setting").
     }
   }
 }

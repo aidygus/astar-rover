@@ -306,6 +306,76 @@
                 }
             ],
             "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "setting",
+        {
+            "items": [
+                {
+                    "items": [
+                        "noise",
+                        0.1,
+                        0.1,
+                        {
+                            "items": [
+                                {
+                                    "freq": 261.626,
+                                    "endfreq": 261.626,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "alert",
+        {
+            "items": [
+                {
+                    "items": [
+                        "square",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 349.228,
+                                    "endfreq": 349.228,
+                                    "vol": 1,
+                                    "keydown": 1,
+                                    "duration": 1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 349.228,
+                                    "endfreq": 349.228,
+                                    "vol": 1,
+                                    "keydown": 1,
+                                    "duration": 1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
         }
     ],
     "$type": "kOS.Safe.Encapsulation.Lexicon"

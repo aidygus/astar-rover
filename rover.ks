@@ -189,12 +189,12 @@ until runmode = -1 {
       IF ROUND(GROUNDSPEED) = 0 AND abs(targetspeed) > 0  AND runmode <> 7 {
         SET runmode TO 5.
         SET lastEvent TO TIME:SECONDS.
-        play_sounds("error").
+        play_sounds("alert").
       } else {
         if pangle > 5 {  // Predicted slope change angle
           SET runmode TO 2.
           set_speed(1).
-          playsound("slopealert").
+          play_sounds("slopealert").
         } else if ABS(headingDifference) > 40 AND targetspeed = settings["DefaultSpeed"] AND runmode <> 2 AND runmode <> 5 AND runmode <> 6 {
           play_sounds("direction").
           set_speed(1).

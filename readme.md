@@ -60,6 +60,10 @@ Tag all parts that contain Experiments with **Skience** and if you select that m
 
 Will keep a record of the distance the rover has travelled.
 
+### sounds
+
+When the status of the rover changes, it will play a sound to let you know.  Depending where it is and what it's driving over, it can be quite vocal at times.
+
 ## Input Keys
 
 Managing the rover is done through Terminal Input with these commands:
@@ -85,8 +89,9 @@ Managing the rover is done through Terminal Input with these commands:
     v/V           - Clear Vectors from screen
     h/H           - Come to a complete stop
 
-    .             - Increase physics warp to 1
-    ,             - Reset physics warp back to 0.
+    c/C           - Run the configuration utility stored on Archive.
+    s/S           - Perform Science experiments
+    r/R           - Refresh screen and display main HUD
 
     Enter/return  - Execute astar path finding algorythm to destination
 

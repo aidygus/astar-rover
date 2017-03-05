@@ -11,6 +11,14 @@
                         {
                             "items": [
                                 {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
                                     "freq": 523.252,
                                     "endfreq": 523.252,
                                     "vol": 1,
@@ -47,6 +55,14 @@
                         0.2,
                         {
                             "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
                                 {
                                     "freq": 659.256,
                                     "endfreq": 659.256,
@@ -85,6 +101,14 @@
                         {
                             "items": [
                                 {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
                                     "freq": 783.99,
                                     "endfreq": 783.99,
                                     "vol": 1,
@@ -121,6 +145,14 @@
                         0.2,
                         {
                             "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
                                 {
                                     "freq": 1046.504,
                                     "endfreq": 1046.504,
@@ -240,6 +272,14 @@
                         {
                             "items": [
                                 {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
                                     "freq": 1046.504,
                                     "endfreq": 1046.504,
                                     "vol": 1,
@@ -290,6 +330,14 @@
                         0.2,
                         {
                             "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
                                 {
                                     "freq": 698.456,
                                     "endfreq": 698.456,
@@ -344,6 +392,14 @@
                         0.2,
                         {
                             "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
                                 {
                                     "freq": 349.228,
                                     "endfreq": 349.228,

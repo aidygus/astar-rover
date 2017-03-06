@@ -32,12 +32,13 @@ FUNCTION play_sounds{
 
 FUNCTION display_battery
 {
-  PARAMETER y.
+  PARAMETER y,c.
   PRINT "################################" AT (6,y).
-  PRINT "#                              ###" AT (6,y+1).
+  PRINT "#" AT (6,y+1).
+  PRINT "###" AT (37,y+1).
   PRINT "################################" AT (6,y+2).
 
-    LOCAL p IS ROUND(chargeLevel / 3.3).
+    LOCAL p IS ROUND(c / 3.3).
     LOCAL b IS "".
     FROM {local x is 0.} UNTIL x = p STEP {set x to x+1.} DO {
       SET b TO b + "|".

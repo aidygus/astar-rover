@@ -15,7 +15,6 @@ CLEARSCREEN.
 LOCAL settings IS LEXICON().
 LOCAL error IS "".
 LOCAL value IS -1.
-LOCAL logging IS LEXICON("Odometer",0).
 LOCAL default_values IS LEXICON(
     "MinSlope", LIST(1,-45,0),
     "MaxSlope", LIST(1,0,45),
@@ -32,7 +31,8 @@ if EXISTS("1:/config/settings.json") = FALSE {
     "IPU", 2000,
     "DefaultSpeed", 4,
     "TurnLimit", 0.2,
-    "Sound", 1
+    "Sound", 1,
+    "Odometer",0
   ).
   WRITEJSON(settings,"1:/config/settings.json").
 } else {
@@ -76,9 +76,13 @@ FUNCTION main_hud {
   PRINT "(1) Initialize rover" AT (5,7).
   PRINT "(2) Rover Settings" AT (5,8).
   PRINT "(3) Reboot KOS Processor" AT (5,9).
-  PRINT "(9) Reset to Factory Settings" AT (5,13).
-  PRINT "Press the Home key to return to this menu" AT (5,18).
-  PRINT "Press End key to exit" AT (5,19).
+  PRINT "(4) Backup Settings to Archive" AT (5,10).
+  if EXISTS("0:/astar-rover/backup/" + SHIP:ROOTPART:UID + ".json") {
+    PRINT "(5) Restore Settings from Archive" AT (5,11).
+  }
+  PRINT "(9) Reset to Factory Settings" AT (5,15).
+  PRINT "Press the Home key to return to this menu" AT (5,20).
+  PRINT "Press End key to exit" AT (5,22).
 
 }
 
@@ -91,6 +95,10 @@ FUNCTION handler_hud {
     settings_hud().
   } else if N = 3 {
     REBOOT.
+  } else if N = 4 {
+    COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json").
+  } else if N = 5 {
+    COPYPATH("0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json","1:/config/settings.json").
   } else if N = 9 {
     reset().
   } else {
@@ -169,7 +177,6 @@ FUNCTION initiate {
     SET y TO report(" - Creating config directory.",5,y).
     CREATEDIR("1:/config").
     WRITEJSON(settings,"1:/config/settings.json").
-    WRITEJSON(logging,"1:/config/log.json").
   }
   SET y TO report("Initialization process completed ",2,y+2).
   SET y TO report(ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free",5,y).

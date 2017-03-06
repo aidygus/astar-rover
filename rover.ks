@@ -15,7 +15,13 @@ if EXISTS("1:/config/settings.json") = FALSE {
   REBOOT.
 } else {
   SET settings TO READJSON("1:/config/settings.json").
-  SET logging TO READJSON("1:/config/log.json").
+  if EXISTS("1:/config/log.json") {
+    LOCAL logs TO READJSON("1:/config/log.json").
+    SET settings["Odometer"] TO logs["Odometer"].
+    WRITEJSON(settings,"1:/config/settings.json").
+    DELETEPATH("1:/config/log.json").
+  }
+  COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json").
 }
 
 RUNPATH("0:/astar-rover/libs").
@@ -124,27 +130,11 @@ ON AG1 {
 display_HUD().
 play_sounds("start").
 until runmode = -1 {
-  //Update the compass:
-  // I want the heading TO match the navball
-  // and be out of 360' instead of +/-180'
-  // I do this by judging the heading relative
-  // TO a lAT/LNG SET TO the north pole
-  IF northPole:bearing <= 0 {
-    SET cHeading TO ABS(northPole:bearing).
-  } ELSE {
-    SET cHeading TO (180 - northPole:bearing) + 180.
-  }
-  SET upvec TO up:vector.
-  SET velvec TO ship:velocity:surface:normalized.
-  SET dp TO vdot(velvec,upvec).
-  SET currentSlopeAngle TO 90 - arccos(dp).
-
-  SET facvec TO SHIP:FACING.
-
   IF chargeLevel < 20 AND runmode <> 13
   {
     LIGHTS OFF.
 
+      CLEARSCREEN.
     hold_poition(13).
     SET menu TO 4.
   }
@@ -156,6 +146,8 @@ until runmode = -1 {
   }
   ELSE IF (ADDONS:RT:AVAILABLE AND ADDONS:RT:HASKSCCONNECTION(SHIP) = FALSE) AND runmode <> 12
   {
+
+      CLEARSCREEN.
     SET menu TO 3.
     hold_poition(12).
   }
@@ -168,6 +160,22 @@ until runmode = -1 {
   if runmode <> 13 AND runmode <> 12
   {
 
+    //Update the compass:
+    // I want the heading TO match the navball
+    // and be out of 360' instead of +/-180'
+    // I do this by judging the heading relative
+    // TO a lAT/LNG SET TO the north pole
+    IF northPole:bearing <= 0 {
+      SET cHeading TO ABS(northPole:bearing).
+    } ELSE {
+      SET cHeading TO (180 - northPole:bearing) + 180.
+    }
+    SET upvec TO up:vector.
+    SET velvec TO ship:velocity:surface:normalized.
+    SET dp TO vdot(velvec,upvec).
+    SET currentSlopeAngle TO 90 - arccos(dp).
+
+    SET facvec TO SHIP:FACING.
     SET targetspeed TO targetspeed + 0.1 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
     SET targetspeed TO max(-1, targetspeed).
 
@@ -525,10 +533,9 @@ else
   }
   else if menu = 4
   {
-    CLEARSCREEN.
     center("---{    LOW POWER MODE    }---",5).
     center(spc + "Remaining charge : " + ROUND( chargeLevel, 1) + "%" + spc,8).
-    display_battery(11).
+    display_battery(11,chargeLevel).
   }
   else if menu = 0 {
     PRINT ": " +  ROUND( targetspeed, 1) + " m/s" + spc AT (18, 6).
@@ -556,7 +563,7 @@ else
     PRINT ": " +  Runmode + spc AT (18, 27).
     PRINT ": " +  AG1 + "   " AT (18, 28).
 
-    PRINT ": " +  ROUND( logging["Odometer"]/1000, 1) + " km" + spc AT (18, 30).
+    PRINT ": " +  ROUND( settings["Odometer"]/1000, 1) + " km" + spc AT (18, 30).
     PRINT ": " +  ROUND( chargeLevel, 1) + "%" + spc AT (18, 31).
     if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
       PRINT ": " +  ROUND( get_slope_speed(), 2) + spc AT (18,34).
@@ -569,9 +576,9 @@ else
   SET looptime TO TIME:SECONDS - loopEndTime.
   SET loopEndTime TO TIME:SECONDS.
 
-  SET logging["Odometer"] TO logging["Odometer"] + (GROUNDSPEED * looptime).
+  SET settings["Odometer"] TO settings["Odometer"] + (GROUNDSPEED * looptime).
   if TIME:SECONDS > nextWrite {
-    WRITEJSON(logging,"1:/config/log.json").
+    WRITEJSON(settings,"1:/config/settings.json").
     SET nextWrite TO TIME:SECONDS + 10.
   }
   WAIT 0. //  We only need to run an iteration once per physics tick.  Ensure that we pause until the next tick.
@@ -630,7 +637,7 @@ FUNCTION start_navigation
   SET TERMINAL:WIDTH TO 50.
   SET TERMINAL:HEIGHT TO 40.
   CLEARSCREEN.
-  WRITEJSON(logging,"1:/config/log.json").
+  WRITEJSON(settings,"1:/config/settings.json").
   display_HUD().
   SET rwaypoint TO 1.
   if route:LENGTH <> 0 {
@@ -661,18 +668,19 @@ FUNCTION restore_speed
 
 FUNCTION get_stop_distance {
   PARAMETER speed, gr IS gradient.
-  return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
+  return speed^2 / (2 * const_gravity * ((SHIP:MASS / const_gravity) + gr)).
+  // return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
 
 }
 FUNCTION get_slope_speed {
   return SQRT(
-      MAX(1,
+      MAX(settings["DefaultSpeed"]/2,
         get_stop_distance(settings["DefaultSpeed"],0)
         *
-        (
-          ( 2 * const_gravity )
+        (2 * const_gravity
+          // ( 2 * const_gravity )
           *
-          (1 / const_gravity + gradient)
+          ( (SHIP:MASS/ const_gravity) + gradient)
         )
       )
     ).
@@ -704,6 +712,8 @@ FUNCTION hold_poition
 FUNCTION restore_operations
 {
   SET runmode TO 0.
+  CLEARSCREEN.
+  display_HUD().
   if route:LENGTH <> 0 {
     LIGHTS ON.
     restore_speed().

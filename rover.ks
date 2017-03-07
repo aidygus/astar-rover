@@ -668,19 +668,19 @@ FUNCTION restore_speed
 
 FUNCTION get_stop_distance {
   PARAMETER speed, gr IS gradient.
-  return speed^2 / (2 * const_gravity * ((SHIP:MASS / const_gravity) + gr)).
+  return speed^2 / (2 * const_gravity * (SHIP:MASS / const_gravity) + gr).
   // return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
 
 }
 FUNCTION get_slope_speed {
   return SQRT(
       MAX(settings["DefaultSpeed"]/2,
-        get_stop_distance(settings["DefaultSpeed"],0)
+        ABS(get_stop_distance(settings["DefaultSpeed"],0))
         *
-        (2 * const_gravity
-          // ( 2 * const_gravity )
+        (
+          2 * const_gravity
           *
-          ( (SHIP:MASS/ const_gravity) + gradient)
+          (SHIP:MASS/ const_gravity) + gradient
         )
       )
     ).

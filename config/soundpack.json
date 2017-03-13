@@ -1,0 +1,438 @@
+{
+    "entries": [
+        "start",
+        {
+            "items": [
+                {
+                    "items": [
+                        "sawtooth",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 523.252,
+                                    "endfreq": 523.252,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 523.252,
+                                    "endfreq": 523.252,
+                                    "vol": 1,
+                                    "keydown": 0.5,
+                                    "duration": 0.5,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                },
+                {
+                    "items": [
+                        "sawtooth",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 659.256,
+                                    "endfreq": 659.256,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 659.256,
+                                    "endfreq": 659.256,
+                                    "vol": 1,
+                                    "keydown": 0.5,
+                                    "duration": 0.5,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                },
+                {
+                    "items": [
+                        "sawtooth",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 783.99,
+                                    "endfreq": 783.99,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 783.99,
+                                    "endfreq": 783.99,
+                                    "vol": 1,
+                                    "keydown": 0.5,
+                                    "duration": 0.5,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                },
+                {
+                    "items": [
+                        "sawtooth",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 1046.504,
+                                    "endfreq": 1046.504,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 1046.504,
+                                    "endfreq": 1046.504,
+                                    "vol": 1,
+                                    "keydown": 0.5,
+                                    "duration": 0.5,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "error",
+        {
+            "items": [
+                {
+                    "items": [
+                        "sawtooth",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 300,
+                                    "endfreq": 300,
+                                    "vol": 1,
+                                    "keydown": 0.27,
+                                    "duration": 0.3,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                },
+                {
+                    "items": [
+                        "sawtooth",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 320,
+                                    "endfreq": 320,
+                                    "vol": 1,
+                                    "keydown": 0.27,
+                                    "duration": 0.3,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "blip",
+        {
+            "items": [
+                {
+                    "items": [
+                        "sine",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 900,
+                                    "endfreq": 900,
+                                    "vol": 1,
+                                    "keydown": 0.18,
+                                    "duration": 0.2,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "slopealert",
+        {
+            "items": [
+                {
+                    "items": [
+                        "square",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 1046.504,
+                                    "endfreq": 1046.504,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 1174.66,
+                                    "endfreq": 1174.66,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 1046.504,
+                                    "endfreq": 1046.504,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 1174.66,
+                                    "endfreq": 1174.66,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "direction",
+        {
+            "items": [
+                {
+                    "items": [
+                        "sine",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 698.456,
+                                    "endfreq": 698.456,
+                                    "vol": 1,
+                                    "keydown": 0.45,
+                                    "duration": 0.45,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "setting",
+        {
+            "items": [
+                {
+                    "items": [
+                        "noise",
+                        0.1,
+                        0.1,
+                        {
+                            "items": [
+                                {
+                                    "freq": 261.626,
+                                    "endfreq": 261.626,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        },
+        "alert",
+        {
+            "items": [
+                {
+                    "items": [
+                        "square",
+                        0.1,
+                        0.2,
+                        {
+                            "items": [
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 349.228,
+                                    "endfreq": 349.228,
+                                    "vol": 1,
+                                    "keydown": 1,
+                                    "duration": 1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 0,
+                                    "endfreq": 0,
+                                    "vol": 1,
+                                    "keydown": 0.1,
+                                    "duration": 0.1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                },
+                                {
+                                    "freq": 349.228,
+                                    "endfreq": 349.228,
+                                    "vol": 1,
+                                    "keydown": 1,
+                                    "duration": 1,
+                                    "$type": "kOS.Sound.NoteValue"
+                                }
+                            ],
+                            "$type": "kOS.Safe.Encapsulation.ListValue"
+                        }
+                    ],
+                    "$type": "kOS.Safe.Encapsulation.ListValue"
+                }
+            ],
+            "$type": "kOS.Safe.Encapsulation.ListValue"
+        }
+    ],
+    "$type": "kOS.Safe.Encapsulation.Lexicon"
+}

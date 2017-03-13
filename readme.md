@@ -60,6 +60,10 @@ Tag all parts that contain Experiments with **Skience** and if you select that m
 
 Will keep a record of the distance the rover has travelled.
 
+### sounds
+
+When the status of the rover changes, it will play a sound to let you know.  Depending where it is and what it's driving over, it can be quite vocal at times.
+
 ## Input Keys
 
 Managing the rover is done through Terminal Input with these commands:

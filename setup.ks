@@ -1,7 +1,7 @@
-LOCAL runmode IS 0..
+LOCAL semode IS 0..
 RUNPATH("0:/astar-rover/libs.ks").
 
-// Valid runmodes
+// Valid semodes
 //  0 - Main Menu
 //  1 - Automated installation
 //  2 - Settings Menu
@@ -42,25 +42,25 @@ main_hud().
 
 SET row TO "----------------------------------------------".
 
-UNTIL runmode = -1 {
-  PRINT "Runmode : " + runmode AT (2,TERMINAL:HEIGHT-2).
+UNTIL semode = -1 {
+  PRINT "Runmode : " + semode AT (2,TERMINAL:HEIGHT-2).
   IF TERMINAL:INPUT:HASCHAR {
     LOCAL K IS TERMINAL:INPUT:GETCHAR().
     LOCAL N IS K:TONUMBER(-99).
-    IF runmode = 1 {
-      SET runmode TO 0.
+    IF semode = 1 {
+      SET semode TO 0.
       main_hud().
     }
     IF K = TERMINAL:INPUT:ENDCURSOR {
-      SET runmode TO -1.
+      SET semode TO -1.
       CLEARSCREEN.
     } else IF K = TERMINAL:INPUT:HOMECURSOR {
-      SET runmode TO 0.
+      SET semode TO 0.
       main_hud().
-    } else if (runmode = 2) {
+    } else if (semode = 2) {
       handler_settings(K,N).
     } ELSE IF N <> -99 {
-      if runmode = 0 {
+      if semode = 0 {
           handler_hud(N).
       }
     }
@@ -88,7 +88,7 @@ FUNCTION main_hud {
 
 FUNCTION handler_hud {
   PARAMETER N.
-  SET runmode TO N.
+  SET semode TO N.
   if N = 1 {
     initiate().
   } else if N = 2 {
@@ -102,7 +102,7 @@ FUNCTION handler_hud {
   } else if N = 9 {
     reset().
   } else {
-    SET runmode TO 0.
+    SET semode TO 0.
   }
 }
 
@@ -200,8 +200,10 @@ FUNCTION handler_settings {
     FOR s IN set {
       PRINT " " AT (26,s).
     }
-    PRINT "*" AT (26,set[N-1]).
-    SET value TO N.
+    if N < set:LENGTH AND N <> 0 {
+      PRINT "*" AT (26,set[N-1]).
+      SET value TO N.
+    }
   } else {
     IF value <> -1 {
       IF K = TERMINAL:INPUT:UPCURSORONE {
@@ -227,5 +229,5 @@ FUNCTION reset {
   DELETEPATH("1:/config").
   report("Rover has been reset",2,4).
   report("Press Home key to continue",2,5).
-  SET runmode TO 0.
+  SET semode TO 0.
 }

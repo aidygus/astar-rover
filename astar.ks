@@ -45,6 +45,15 @@ IF len > 160 {
   SET TERMINAL:HEIGHT TO len + 10.
 }
 
+LOCAL r IS "".
+LOCAL m IS LIST().
+FROM {LOCAL c IS 0.} UNTIL c = len STEP { SET c TO c+1.} DO {
+  SET r TO r + " ".
+}
+
+FROM {LOCAL c IS 0.} UNTIL c = len STEP { SET c TO c+1.} DO {
+  m:ADD(r).
+}
 
 LOCAL map IS LEXICON().  // Node list
 LOCAL openset IS LEXICON(). // Open Set
@@ -54,6 +63,8 @@ LOCAL fscore IS LEXICON().
 LOCAL gscore IS LEXICON().
 LOCAL camefrom IS LEXICON().
 LOCAL neighbourlist IS LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
+
+
 
 LOCAL latdist IS (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
 LOCAL lngdist IS (goal:LNG-start:LNG) / (gindex-sindex).
@@ -152,6 +163,8 @@ FUNCTION astar {
       LOCAL K IS TERMINAL:INPUT:GETCHAR().
       IF K = TERMINAL:INPUT:ENDCURSOR {
         SET asrunmode TO -1.
+        SET TERMINAL:WIDTH TO 50.
+        SET TERMINAL:HEIGHT TO 40.
       }
     }
   }
@@ -176,10 +189,10 @@ FUNCTION get_neighbours {
     if closedset:HASKEY(neighbour) {
       // Continue and do nothing
     } else {
-      if test_neighbour(current,ne,LIST(gridx,gridy)) {
-        LOCAL tentative_gscore IS gscore[current[0]+","+current[1]] + 1 + map[neighbour]["WEIGHT"].
+      if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
+        if test_neighbour(current,ne,LIST(gridx,gridy)) {
+          LOCAL tentative_gscore IS gscore[current[0]+","+current[1]] + 1 + map[neighbour]["WEIGHT"].
           //  We don't want to fall off the grid!
-        if gridy >= 0 AND gridy <= len-1 AND gridx >= 0 AND gridx <= len-1 {
           if openset:HASKEY(neighbour) = FALSE {
             openset:ADD(neighbour,TRUE).
           } else if tentative_gscore >= currentgscore {
@@ -242,23 +255,25 @@ FUNCTION test_neighbour{
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
   LOCAL weight TO 0.
+  LOCAL c IS " ".
   if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 {
-      PRINT "." AT (printat[0],printat[1]).
+      SET c TO ".".
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
   } else if grid:TERRAINHEIGHT < 0 {
-    PRINT "!" AT (printat[0],printat[1]).
+    SET c TO "!".
     place_marker(grid,red,5,100,round(angle),0.05).
     SET setlist TO 2.
   } else {
     if angle <= settings["MinSlope"] {
-      PRINT "v" AT (printat[0],printat[1]).
+      SET c TO "v".
       SET weight TO 1.
     } else {
-      PRINT "^" AT (printat[0],printat[1]).  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+      SET c TO "^".  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
       SET weight TO 1.
     }
   }
+  PRINT c AT (printat[0],printat[1]).
   // Update the graph with what we've discovered about this cell.
 
   SET map[printat[1]+","+printat[0]] TO LEXICON(
@@ -269,6 +284,8 @@ FUNCTION test_neighbour{
     "FSCORE",0,
     "WEIGHT",weight
   ).
+  SET m[printat[1]] TO m[printat[1]]:REMOVE(printat[0],1).
+  SET m[printat[1]] TO m[printat[1]]:INSERT(printat[0],c).
   if setlist = 1 {
     return TRUE.
   } else {
@@ -341,10 +358,13 @@ function construct_route {
   UNTIL camefrom:HASKEY(current[0]+","+current[1]) = FALSE {
     SET current TO camefrom[current[0]+","+current[1]].
     PRINT "*" AT (current[1],current[0]).
+    SET m[current[0]] TO m[current[0]]:REMOVE(current[1],1).
+    SET m[current[0]] TO m[current[0]]:INSERT(current[1],"*").
     place_marker(LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"]),yellow,1,100,"",30).
     totalpath:INSERT(0,LATLNG(map[current[0]+","+current[1]]["LAT"],map[current[0]+","+current[1]]["LNG"])).
   }
   CLEARSCREEN.
+  WRITEJSON(m,"0:/astar-rover/backup/map.json").
   return totalpath.
 }
 

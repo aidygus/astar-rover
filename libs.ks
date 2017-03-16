@@ -1,3 +1,7 @@
+LOCAL vol IS "0:".
+IF EXISTS("1:/astar-rover/config/soundpack.json") {
+  SET vol TO "1:".
+}
 FUNCTION center {
   PARAMETER s,y.
 
@@ -14,7 +18,7 @@ FUNCTION update_setting {
 FUNCTION play_sounds{
   PARAMETER s.
   if settings["Sound"] = 1 {
-    LOCAL soundpack IS READJSON("0:/astar-rover/config/soundpack.json").
+    LOCAL soundpack IS READJSON(vol+"/astar-rover/config/soundpack.json").
 
     LOCAL q IS LIST().
     LOCAL c IS 0.

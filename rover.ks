@@ -10,22 +10,20 @@
 
 PARAMETER debug IS true.
 
+SET vol TO "0:".
+IF EXISTS("1:/astar-rover/libs.km") {
+  SET vol TO "1:".
+}
+
 if EXISTS("1:/config/settings.json") = FALSE {
   runpath("0:/astar-rover/setup").
   REBOOT.
 } else {
   SET settings TO READJSON("1:/config/settings.json").
-  if EXISTS("1:/config/log.json") {
-    LOCAL logs TO READJSON("1:/config/log.json").
-    SET settings["Sound"] TO 1.
-    SET settings["Odometer"] TO logs["Odometer"].
-    WRITEJSON(settings,"1:/config/settings.json").
-    DELETEPATH("1:/config/log.json").
-  }
   COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json").
 }
 
-RUNPATH("0:/astar-rover/libs").
+RUNPATH(vol+"/astar-rover/libs").
 SET const_gravity TO BODY:mu / BODY:RADIUS ^ 2.
 
 lock turnlimit to min(1, settings["TurnLimit"] / SHIP:GROUNDSPEED). //Scale the
@@ -49,7 +47,7 @@ SET spc TO "     ".
 SET header TO "".
 SET waitCursor TO LIST("-","\","|","/").
 SET waitCount TO 0.
-SET coList TO LEXICON("Kerbin",0.33,"Mun",0.60,"Minmus",0.65).  //  Need an equation to work out what friction coefficient is for given gravity
+SET coList TO LEXICON("Kerbin",0.33,"Mun",0.60,"Minmus",0.65,"Duna",0.4).  //  Need an equation to work out what friction coefficient is for given gravity
 
 
 SET overSpeedDownSlopeBrakeTime TO 0.3.
@@ -335,6 +333,14 @@ until runmode = -1 {
   {
     LOCAL playsound IS "blip".
     LOCAL K IS TERMINAL:INPUT:GETCHAR().
+    if menu = 5 {
+      SET TERMINAL:WIDTH TO 50.
+      SET TERMINAL:HEIGHT TO 40.
+      SET TERMINAL:CHARWIDTH TO 8.
+      SET TERMINAL:CHARHEIGHT TO 8.
+      SET menu TO 0.
+      display_HUD().
+    }
     LOCAL N IS K:TONUMBER(-99).
     IF K = TERMINAL:INPUT:UPCURSORONE
     {
@@ -444,6 +450,9 @@ until runmode = -1 {
     }
     ELSE IF K:TOUPPER = "V" {
       CLEARVECDRAWS().
+    }
+    ELSE IF K:TOUPPER = "M" {
+      load_map().
     }
     ELSE IF K = "," {
       SET KUNIVERSE:TIMEWARP:MODE TO "PHYSICS".
@@ -610,6 +619,8 @@ FUNCTION display_HUD {
   PRINT "wTVAL" AT (35,10).
   PRINT "kTurn" AT (35,11).
   PRINT "Limit" AT (35,12).
+
+  PRINT "Roverware Version : " + settings["Version"] AT (2,TERMINAL:HEIGHT-1).
 }
 
 FUNCTION nav_marker {
@@ -663,8 +674,6 @@ FUNCTION restore_speed
 FUNCTION get_stop_distance {
   PARAMETER speed, gr IS gradient.
   return speed^2 / (2 * const_gravity * coList[BODY:NAME] + gr).
-  // return speed^2 / (( 2 * const_gravity) * ( 1 / const_gravity + gr)).
-
 }
 FUNCTION get_slope_speed {
   return SQRT(
@@ -686,7 +695,6 @@ FUNCTION next_waypoint
   SET rwaypoint TO rwaypoint + 1.
   if rwaypoint < route:LENGTH {
     SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
-    // LOCK WHEELSTEERING TO __grid:HEADING.
     LOCK targetHeading TO __grid:HEADING.
     SET runmode TO mode.
   } else {
@@ -714,4 +722,25 @@ FUNCTION restore_operations
     SET WARP TO 0.
   }
   SET lastEvent TO TIME:SECONDS.
+}
+
+FUNCTION load_map
+{
+  SET menu TO 5.
+  LOCAL mp IS READJSON("0:/astar-rover/backup/map.json").
+  LOCAL l IS mp:LENGTH.
+  IF l > 160 {
+    SET TERMINAL:WIDTH TO (l/1.5) + 10.
+    SET TERMINAL:HEIGHT TO (l/1.5) + 10.
+    SET TERMINAL:CHARWIDTH TO 6.
+    SET TERMINAL:CHARHEIGHT TO 6.
+  } else {
+    SET TERMINAL:WIDTH TO (l) + 10.
+    SET TERMINAL:HEIGHT TO (l) + 10.
+  }
+  LOCAL y IS 0.
+  FOR row IN mp {
+    PRINT row AT (0,y).
+    SET y TO y + 1.
+  }
 }

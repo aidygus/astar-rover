@@ -1,6 +1,8 @@
-LOCAL semode IS 0..
 RUNPATH("0:/astar-rover/libs.ks").
 
+SET rversion TO OPEN("0:/astar-rover/config/version"):READALL. //"2.3.1".
+
+LOCAL semode IS 0..
 // Valid semodes
 //  0 - Main Menu
 //  1 - Automated installation
@@ -32,11 +34,14 @@ if EXISTS("1:/config/settings.json") = FALSE {
     "DefaultSpeed", 4,
     "TurnLimit", 0.2,
     "Sound", 1,
-    "Odometer",0
+    "Odometer",0,
+    "Version",rversion
   ).
   WRITEJSON(settings,"1:/config/settings.json").
 } else {
   SET settings TO READJSON("1:/config/settings.json").
+  SET settings["Version"] TO rversion.
+  WRITEJSON(settings,"1:/config/settings.json").
 }
 main_hud().
 
@@ -156,12 +161,8 @@ FUNCTION initiate {
     report("Compiling A* scripts",5,y).
     COMPILE "0:/astar-rover/astar.ks" TO "1:/astar-rover/astar.ksm".
     SET Y TO report(" - Done.",30,y).
-    // report("Compiling shared libs",5,y).
-    // COMPILE "0:/astar-rover/libs.ks" TO "1:/astar-rover/libs.ksm".
-    // SET Y TO report(" - Done.",30,y).
-    PRINT ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free" AT (5,y).
   }
-  SET y TO report("Checking if boot directory exists",2,y).
+  SET y TO report("Preparing boot directory",2,y).
   IF EXISTS("1:/boot") {
     DELETEPATH("1:/boot").
   }
@@ -177,8 +178,19 @@ FUNCTION initiate {
     SET y TO report(" - Creating config directory.",5,y).
     CREATEDIR("1:/config").
     WRITEJSON(settings,"1:/config/settings.json").
+    COPYPATH("0:/start-rover/config/version","1:/config/version").
   }
-  SET y TO report("Initialization process completed ",2,y+2).
+  if capacity >= 30000 {
+    report("Compiling shared libs",5,y).
+    COMPILE "0:/astar-rover/libs.ks" TO "1:/astar-rover/libs.ksm".
+    SET Y TO report(" - Done.",30,y).
+    report("Compiling setup",5,y).
+    COMPILE "0:/astar-rover/setup.ks" TO "1:/astar-rover/setup.ksm".
+    SET Y TO report(" - Done.",30,y).
+    report("Copying Soundpack",5,y).
+    COPYPATH("0:/astar-rover/config/soundpack.json","1:/astar-rover/config/soundpack.json").
+    SET Y TO report(" - Done.",30,y).
+  }
   SET y TO report(ROUND(CORE:CURRENTVOLUME:FREESPACE/1000,3) + " kbytes free",5,y).
   SET y TO report("To customize how the rover operates, change them in the settings menu",2,y+2).
   SET y TO report("Press Any key to continue",5,y+4).

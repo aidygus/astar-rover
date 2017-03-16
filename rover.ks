@@ -170,6 +170,7 @@ until runmode = -1 {
     SET upvec TO up:vector.
     SET velvec TO ship:velocity:surface:normalized.
     SET dp TO vdot(velvec,upvec).
+    SET dir TO vdot(SHIP:FACING:VECTOR,SRFPROGRADE:VECTOR).
     SET currentSlopeAngle TO 90 - arccos(dp).
 
     SET facvec TO SHIP:FACING.
@@ -287,6 +288,10 @@ until runmode = -1 {
 
             if ABS(GROUNDSPEED) < 2 AND ABS(targetspeed) < 2 {
                set wtVAL to min( 1, max( -0.2, wtVAL)).
+            }
+
+            if GROUNDSPEED > targetspeed AND dir < 0 AND wtVAL < 0 {
+              SET wtVAL TO -1 * wtVAL.
             }
           }
         }
@@ -570,9 +575,10 @@ else
       PRINT ": " +  ROUND( get_slope_speed(), 2) + spc AT (18,34).
     }
 
-    PRINT ": " + ROUND(wtVAL,3) + spc AT (40,10).
-    PRINT ": " + ROUND(kTurn,3) + spc AT (40,11).
-    PRINT ": " + ROUND(turnlimit,3) + spc AT (40,12).
+    PRINT ": " + ROUND(wtVAL,3) + spc AT (37,10).
+    PRINT ": " + ROUND(kTurn,3) + spc AT (37,11).
+    PRINT ": " + ROUND(turnlimit,3) + spc AT (37,12).
+    PRINT ": " + ROUND(dir,2) + spc AT (37,13).
   }
 
   SET looptime TO TIME:SECONDS - loopEndTime.
@@ -616,9 +622,10 @@ FUNCTION display_HUD {
   PRINT "Electric" AT (2,31).
 
   PRINT "Slope Speed" AT (2,34).
-  PRINT "wTVAL" AT (35,10).
-  PRINT "kTurn" AT (35,11).
-  PRINT "Limit" AT (35,12).
+  PRINT "wTVAL" AT (32,10).
+  PRINT "kTurn" AT (32,11).
+  PRINT "Limit" AT (32,12).
+  PRINT "Dir" AT (32,13).
 
   PRINT "Roverware Version : " + settings["Version"] AT (2,TERMINAL:HEIGHT-1).
 }

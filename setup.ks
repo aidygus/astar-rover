@@ -229,6 +229,7 @@ FUNCTION handler_settings {
         }
       }
       PRINT settings[keys[value-1]]+"    " AT (28,set[value-1]).
+      WRITEJSON(settings,"1:/config/settings.json").
     }
   }
 }

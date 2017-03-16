@@ -1,4 +1,9 @@
 PARAMETER input1 IS 1, input2 IS 1, debug IS true.
+SET vol TO "0:".
+if EXISTS ("1:/astar-rover/libs.km") {
+  SET vol TO "1:".
+}
+RUNPATH(vol+"/astar-rover/libs").
 
 RUNPATH("0:/astar-rover/libs.ks").
 

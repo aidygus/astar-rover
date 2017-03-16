@@ -539,6 +539,7 @@ else
   }
   else if menu = 4
   {
+    CLEARSCREEN.
     center("---{    LOW POWER MODE    }---",5).
     center(spc + "Remaining charge : " + ROUND( chargeLevel, 1) + "%" + spc,8).
     display_battery(11,chargeLevel).

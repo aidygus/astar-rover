@@ -93,6 +93,10 @@ Managing the rover is done through Terminal Input with these commands:
     s/S           - Perform Science experiments
     r/R           - Refresh screen and display main HUD
 
+    c/C           - Run the configuration utility stored on Archive.
+    s/S           - Perform Science experiments
+    r/R           - Refresh screen and display main HUD
+
     Enter/return  - Execute astar path finding algorythm to destination
 
     Page Up       - Increase rover speed by 0.5 m/s

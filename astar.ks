@@ -5,6 +5,8 @@ if EXISTS ("1:/astar-rover/libs.km") {
 }
 RUNPATH(vol+"/astar-rover/libs").
 
+RUNPATH("0:/astar-rover/libs.ks").
+
 LOCAL asrunmode IS 0.
 LOCAL current_ipu IS CONFIG:IPU.
 
@@ -28,6 +30,10 @@ if input1 = "LATLNG" {
 
 LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
 
+
+  SET TERMINAL:CHARWIDTH TO 4.
+  SET TERMINAL:CHARHEIGHT TO 4.
+}
 LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
 LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
 LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).

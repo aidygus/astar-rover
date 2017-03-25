@@ -211,21 +211,21 @@ until runmode = -1 {
           SET runmode TO 0.
           LOCAL gl IS navpoints[0].
           navpoints:REMOVE(0).
-          RUNPATH(vol+"/astar-rover/astar","LATLNG",gl,false).
+          RUNPATH("0:/astar-rover/astar","LATLNG",gl,false).
           start_navigation().
         }
         IF ROUND(GROUNDSPEED,1) = 0.0 AND abs(targetspeed) > 0  {
           SET runmode TO 5.
           SET lastEvent TO TIME:SECONDS.
         } else {
-          if ABS(headingDifference) > 40 AND runmode <> 5 AND runmode <> 6 {
+          if ABS(headingDifference) > 40 AND runmode <> 5 AND runmode <> 6 AND runmode <> 3 {
             play_sounds("direction").
             set_speed(1,3).
           }
-          if __grid:DISTANCE < 20 + stopDistance AND ABS(nextWaypointHeading) > 40 {
+          if __grid:DISTANCE < 20 + stopDistance AND ABS(nextWaypointHeading) > 40 AND runmode <> 1{
             set_speed(1,1).
           }
-          if ABS(pangle) > 5 {  // Predicted slope change angle
+          if ABS(pangle) > 5 AND runmode <> 2 {  // Predicted slope change angle
             set_speed(1,2).
             play_sounds("slopealert").
           }
@@ -264,37 +264,37 @@ until runmode = -1 {
         }
       }
       if rwaypoint <> -1 AND rwaypoint = (route:LENGTH-1) AND route[rwaypoint]:DISTANCE < 50 {
-          SET header TO "---{   Rover has arrived at location  }---         " + spc.
-          PRINT header AT (2,1).
-          hold_poition(7).
-          SET lastEvent TO TIME:SECONDS.
+        SET header TO "---{   Rover has arrived at location  }---         " + spc.
+        PRINT header AT (2,1).
+        hold_poition(7).
+        SET lastEvent TO TIME:SECONDS.
+      }
+
+      IF targetspeed = 0 AND ROUND(GROUNDSPEED,1) = 0 {
+        SET wtVAL TO 0.
+        brakes on.
+      } else { //IF we should be going forward
+        if brakesOn = false {
+          brakes off.
         }
+        if targetspeed > settings["DefaultSpeed"] {
+          SET targetspeed TO settings["DefaultSpeed"].
+        }
+        if Runmode <> 7 {
+          SET eWheelThrottle TO targetspeed - GROUNDSPEED.
+          SET iWheelThrottle TO min( 0.5, max( -0.5, iWheelThrottle +
+                                              (looptime * eWheelThrottle))).
+          SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
 
-        IF targetspeed = 0 AND ROUND(GROUNDSPEED,1) = 0 {
-          SET wtVAL TO 0.
-          brakes on.
-        } else { //IF we should be going forward
-          if brakesOn = false {
-            brakes off.
+          if ABS(GROUNDSPEED) < 2 and runmode <> 0 {
+             set wtVAL to min( 0.3, max( -0.2, wtVAL)).
           }
-          if targetspeed > settings["DefaultSpeed"] {
-            SET targetspeed TO settings["DefaultSpeed"].
-          }
-          if Runmode <> 7 {
-            SET eWheelThrottle TO targetspeed - GROUNDSPEED.
-            SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
-                                                (looptime * eWheelThrottle))).
-            SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
 
-            if ABS(GROUNDSPEED) < 2 AND ABS(targetspeed) < 2 {
-               set wtVAL to min( 1, max( -0.2, wtVAL)).
-            }
-
-            if GROUNDSPEED > targetspeed AND dir < 0 AND wtVAL < 0 {
-              SET wtVAL TO -1 * wtVAL.
-            }
+          if targetspeed > 0 AND dir < 0 AND wtVAL < 0 {
+            SET wtVAL TO -wtVAL.
           }
         }
+      }
     }
 
     IF AG1 { //Activate autopilot if Action group 1 is on
@@ -332,7 +332,9 @@ until runmode = -1 {
       preserve.
     }.
 
-
+  if wpm:LENGTH <> 0 {
+    nav_lines().
+  }
   //Handle User Input using action groups
   IF TERMINAL:INPUT:HASCHAR
   {
@@ -370,9 +372,9 @@ until runmode = -1 {
     ELSE IF K = TERMINAL:INPUT:RETURN
     {
       if navpoints:LENGTH = 0 {
-        RUNPATH(vol+"/astar-rover/astar","LATLNG",__goal,false).
+        RUNPATH("0:/astar-rover/astar","LATLNG",__goal,false).
       } else {
-        RUNPATH(vol+"/astar-rover/astar","LATLNG",navpoints[0],false).
+        RUNPATH("0:/astar-rover/astar","LATLNG",navpoints[0],false).
         navpoints:REMOVE(0).
       }
       start_navigation().
@@ -459,6 +461,14 @@ until runmode = -1 {
     ELSE IF K:TOUPPER = "M" {
       load_map().
     }
+    ELSE IF K:TOUPPER = "L" {
+      if wpm:LENGTH <> 0 {
+        CLEARVECDRAWS().
+        SET wpm TO LIST().
+      } else {
+        nav_lines().
+      }
+    }
     ELSE IF K = "," {
       SET KUNIVERSE:TIMEWARP:MODE TO "PHYSICS".
       SET WARP TO 0.
@@ -475,7 +485,7 @@ until runmode = -1 {
       } else if menu = 1 {
         if N <= contractWayPoints:LENGTH {
           LOCAL w IS contractWayPoints[N-1].
-          RUNPATH(vol+"/astar-rover/astar","WAYPOINT",w:NAME,false).
+          RUNPATH("0:/astar-rover/astar","WAYPOINT",w:NAME,false).
           SET menu TO 0.
           if route:LENGTH <> 0 {
             SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
@@ -643,6 +653,25 @@ FUNCTION waypoint_marker {
               __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+800),
               __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+800),
               Blue, "", 1, true,50)).
+}
+
+FUNCTION nav_lines {
+  LOCAL c IS 0.
+  LOCAL wl IS false.
+  if wpm:LENGTH <> 0 {
+    SET wl TO true.
+  }
+  FOR w IN route {
+    if c < route:LENGTH-1 {
+      if wl = true {
+        SET wpm[c]:START TO w:ALTITUDEPOSITION(w:TERRAINHEIGHT+5).
+        SET wpm[c]:VEC TO route[c+1]:POSITION - route[c+1]:ALTITUDEPOSITION(route[c+1]:TERRAINHEIGHT+5).
+      } else {
+        wpm:ADD(VECDRAWARGS(w:ALTITUDEPOSITION(w:TERRAINHEIGHT+5),route[c+1]:POSITION - route[c+1]:ALTITUDEPOSITION(route[c+1]:TERRAINHEIGHT+5),GREEN)).
+      }
+      SET c TO c + 1.
+    }
+  }
 }
 
 FUNCTION start_navigation

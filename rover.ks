@@ -222,7 +222,7 @@ until runmode = -1 {
             play_sounds("direction").
             set_speed(1,3).
           }
-          if __grid:DISTANCE < 20 + stopDistance AND ABS(nextWaypointHeading) > 40 AND runmode <> 1{
+          if __grid:DISTANCE < 20 + stopDistance AND ABS(nextWaypointHeading) > 40 AND runmode <> 1 {
             set_speed(1,1).
           }
           if ABS(pangle) > 5 AND runmode <> 2 {  // Predicted slope change angle
@@ -280,9 +280,9 @@ until runmode = -1 {
         if targetspeed > settings["DefaultSpeed"] {
           SET targetspeed TO settings["DefaultSpeed"].
         }
-        if Runmode <> 7 {
+        if Runmode <> 7{
           SET eWheelThrottle TO targetspeed - GROUNDSPEED.
-          SET iWheelThrottle TO min( 0.5, max( -0.5, iWheelThrottle +
+          SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
                                               (looptime * eWheelThrottle))).
           SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
 
@@ -293,6 +293,8 @@ until runmode = -1 {
           if targetspeed > 0 AND dir < 0 AND wtVAL < 0 {
             SET wtVAL TO -wtVAL.
           }
+        } else {
+          SET wtVAL TO 0.
         }
       }
     }

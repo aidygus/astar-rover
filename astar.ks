@@ -5,12 +5,10 @@ if EXISTS ("1:/astar-rover/libs.km") {
 }
 RUNPATH(vol+"/astar-rover/libs").
 
-RUNPATH("0:/astar-rover/libs.ks").
+// RUNPATH("0:/astar-rover/libs.ks").
 
 LOCAL asrunmode IS 0.
 LOCAL current_ipu IS CONFIG:IPU.
-
-SET CONFIG:IPU TO settings["IPU"].
 
 LOCAL goal IS "".
 LOCAL wp IS "".
@@ -29,11 +27,6 @@ if input1 = "LATLNG" {
 }
 
 LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
-
-
-  SET TERMINAL:CHARWIDTH TO 4.
-  SET TERMINAL:CHARHEIGHT TO 4.
-}
 LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
 LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
 LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
@@ -44,15 +37,14 @@ PRINT "Graph Size   : " + len.
 PRINT "Starting Ref : " + sindex.
 
 LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+LOCAL ts IS len + 10.
+LOCAL cs IS 8.
 IF len > 160 {
-  SET TERMINAL:WIDTH TO (len/1.5) + 10.
-  SET TERMINAL:HEIGHT TO (len/1.5) + 10.
-  SET TERMINAL:CHARWIDTH TO 6.
-  SET TERMINAL:CHARHEIGHT TO 6.
-} else {
-  SET TERMINAL:WIDTH TO len + 10.
-  SET TERMINAL:HEIGHT TO len + 10.
+  SET ts TO (len/1.5) + 10.
+  SET cs TO 6.
 }
+
+set_terminal(ts,ts,settings["IPU"],cs).
 
 LOCAL r IS "".
 LOCAL m IS LIST().
@@ -91,11 +83,8 @@ clear_down().
 if route:LENGTH = 0 {
   PRINT "---{  Route can not be found  }---" AT (2,1).
 }
-SET TERMINAL:WIDTH TO 50.
-SET TERMINAL:HEIGHT TO 40.
-SET CONFIG:IPU TO current_ipu.
-SET TERMINAL:CHARWIDTH TO charSize[1].
-SET TERMINAL:CHARHEIGHT TO charSize[0].
+
+set_terminal(50,40,current_ipu,charSize[0]).
 
 //    /**
 //    @sindex coordinates of the starting x cell in the graph
@@ -172,8 +161,7 @@ FUNCTION astar {
       LOCAL K IS TERMINAL:INPUT:GETCHAR().
       IF K = TERMINAL:INPUT:ENDCURSOR {
         SET asrunmode TO -1.
-        SET TERMINAL:WIDTH TO 50.
-        SET TERMINAL:HEIGHT TO 40.
+        set_terminal().
       }
     }
   }
@@ -386,4 +374,15 @@ FUNCTION clear_down {
   fscore:CLEAR.
   gscore:CLEAR.
   camefrom:CLEAR.
+}
+
+FUNCTION set_terminal {
+  PARAMETER w IS 50, h is 40, i is 250, c is 8.
+
+  SET TERMINAL:WIDTH TO w.
+  SET TERMINAL:HEIGHT TO h.
+  SET CONFIG:IPU TO i.
+  SET TERMINAL:CHARWIDTH TO c.
+  SET TERMINAL:CHARHEIGHT TO c.
+
 }

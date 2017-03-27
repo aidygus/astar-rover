@@ -1,6 +1,6 @@
 RUNPATH("0:/astar-rover/libs.ks").
 
-SET rversion TO OPEN("0:/astar-rover/config/version"):READALL. //"2.3.1".
+SET rversion TO OPEN("0:/astar-rover/config/version"):READALL:STRING. //"2.3.1".
 
 LOCAL semode IS 0..
 // Valid semodes
@@ -158,9 +158,9 @@ FUNCTION initiate {
     report("Compiling rover script",5,y).
     COMPILE "0:/astar-rover/rover.ks" TO "1:/astar-rover/rover.ksm".
     SET y TO report(" - Done.",30,y).
-    report("Compiling A* scripts",5,y).
-    COMPILE "0:/astar-rover/astar.ks" TO "1:/astar-rover/astar.ksm".
-    SET Y TO report(" - Done.",30,y).
+    // report("Compiling A* scripts",5,y).
+    // COMPILE "0:/astar-rover/astar.ks" TO "1:/astar-rover/astar.ksm".
+    // SET Y TO report(" - Done.",30,y).
   }
   SET y TO report("Preparing boot directory",2,y).
   IF EXISTS("1:/boot") {
@@ -184,9 +184,9 @@ FUNCTION initiate {
     report("Compiling shared libs",5,y).
     COMPILE "0:/astar-rover/libs.ks" TO "1:/astar-rover/libs.ksm".
     SET Y TO report(" - Done.",30,y).
-    report("Compiling setup",5,y).
-    COMPILE "0:/astar-rover/setup.ks" TO "1:/astar-rover/setup.ksm".
-    SET Y TO report(" - Done.",30,y).
+    // report("Compiling setup",5,y).
+    // COMPILE "0:/astar-rover/setup.ks" TO "1:/astar-rover/setup.ksm".
+    // SET Y TO report(" - Done.",30,y).
     report("Copying Soundpack",5,y).
     COPYPATH("0:/astar-rover/config/soundpack.json","1:/astar-rover/config/soundpack.json").
     SET Y TO report(" - Done.",30,y).

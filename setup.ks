@@ -2,7 +2,7 @@ RUNPATH("0:/astar-rover/libs.ks").
 
 SET rversion TO OPEN("0:/astar-rover/config/version"):READALL:STRING. //"2.3.1".
 
-LOCAL semode IS 0..
+LOCAL semode IS 0.
 // Valid semodes
 //  0 - Main Menu
 //  1 - Automated installation
@@ -27,17 +27,20 @@ LOCAL default_values IS LEXICON(
 ).
 
 if EXISTS("1:/config/settings.json") = FALSE {
-  SET settings TO LEXICON(
-    "MinSlope", -15,
-    "MaxSlope", 25,
-    "IPU", 2000,
-    "DefaultSpeed", 4,
-    "TurnLimit", 0.2,
-    "Sound", 1,
-    "Odometer",0,
-    "Version",rversion
-  ).
-  WRITEJSON(settings,"1:/config/settings.json").
+  if EXISTS("0:/astar-rover/backup/" + SHIP:NAME + ".json") {
+    SET settings TO READJSON("0:/astar-rover/backup/" + SHIP:NAME + ".json").
+  } else {
+    SET settings TO LEXICON(
+      "MinSlope", -15,
+      "MaxSlope", 25,
+      "IPU", 2000,
+      "DefaultSpeed", 4,
+      "TurnLimit", 0.2,
+      "Sound", 1,
+      "Odometer",0,
+      "Version",rversion
+    ).
+  }
 } else {
   SET settings TO READJSON("1:/config/settings.json").
   SET settings["Version"] TO rversion.
@@ -82,7 +85,7 @@ FUNCTION main_hud {
   PRINT "(2) Rover Settings" AT (5,8).
   PRINT "(3) Reboot KOS Processor" AT (5,9).
   PRINT "(4) Backup Settings to Archive" AT (5,10).
-  if EXISTS("0:/astar-rover/backup/" + SHIP:ROOTPART:UID + ".json") {
+  if EXISTS("0:/astar-rover/backup/" + SHIP:NAME + ".json") {
     PRINT "(5) Restore Settings from Archive" AT (5,11).
   }
   PRINT "(9) Reset to Factory Settings" AT (5,15).
@@ -101,9 +104,12 @@ FUNCTION handler_hud {
   } else if N = 3 {
     REBOOT.
   } else if N = 4 {
-    COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json").
+    COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:NAME+".json").
   } else if N = 5 {
-    COPYPATH("0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json","1:/config/settings.json").
+    COPYPATH("0:/astar-rover/backup/"+SHIP:NAME+".json","1:/config/settings.json").
+    REBOOT.
+  } else if N = 6 {
+    runpath("0:/astar-rover/CalcCE.ks").
   } else if N = 9 {
     reset().
   } else {
@@ -178,7 +184,7 @@ FUNCTION initiate {
     SET y TO report(" - Creating config directory.",5,y).
     CREATEDIR("1:/config").
     WRITEJSON(settings,"1:/config/settings.json").
-    COPYPATH("0:/start-rover/config/version","1:/config/version").
+    COPYPATH("0:/astar-rover/config/version","1:/config/version").
   }
   if capacity >= 30000 {
     report("Compiling shared libs",5,y).
@@ -219,17 +225,19 @@ FUNCTION handler_settings {
   } else {
     IF value <> -1 {
       IF K = TERMINAL:INPUT:UPCURSORONE {
+        PRINT "Up  " + value AT (28,TERMINAL:HEIGHT-1).
         IF settings[keys[value-1]] < default_values[keys[value-1]][2] {
           update_setting(keys[value-1],settings[keys[value-1]] + default_values[keys[value-1]][0]).
         }
       }
       ELSE IF K = TERMINAL:INPUT:DOWNCURSORONE {
+        PRINT "Down" + value AT (28,TERMINAL:HEIGHT-1).
         IF settings[keys[value-1]] > default_values[keys[value-1]][1] {
           update_setting(keys[value-1],settings[keys[value-1]] - default_values[keys[value-1]][0]).
         }
       }
+      SET settings TO READJSON("1:/config/settings.json").
       PRINT settings[keys[value-1]]+"    " AT (28,set[value-1]).
-      WRITEJSON(settings,"1:/config/settings.json").
     }
   }
 }

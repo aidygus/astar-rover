@@ -42,12 +42,13 @@ FUNCTION display_battery
   PRINT "###" AT (37,y+1).
   PRINT "################################" AT (6,y+2).
 
-    LOCAL p IS ROUND(c / 3.3).
-    LOCAL b IS "".
-    FROM {local x is 0.} UNTIL x = p STEP {set x to x+1.} DO {
-      SET b TO b + "|".
-    }
-    PRINT b + spc AT (7,y+1).
+  LOCAL p IS ROUND(c / 3.3).
+  LOCAL b IS "".
+  FROM {local x is 0.} UNTIL x = p STEP {set x to x+1.} DO {
+    SET b TO b + "|".
+  }
+  PRINT b + spc AT (7,y+1).
+  WAIT 1.
 }
 
 FUNCTION science_menu {
@@ -86,10 +87,11 @@ FUNCTION transmit_science
   PRINT "Performing Science" AT (2,11).
   WAIT 0.
   M:DEPLOY.
-
-  PRINT "Transmitting Science" AT (2,12).
-  WAIT UNTIL M:HASDATA.
-  M:TRANSMIT.
+  if AG2 {
+    PRINT "Transmitting Science" AT (2,12).
+    WAIT UNTIL M:HASDATA.
+    M:TRANSMIT.
+  }
   M:RESET.
 }
 

@@ -20,13 +20,13 @@ if EXISTS("1:/config/settings.json") = FALSE {
   REBOOT.
 } else {
   SET settings TO READJSON("1:/config/settings.json").
-  COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:ROOTPART:UID+".json").
+  COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:NAME+".json").
 }
 
 RUNPATH(vol+"/astar-rover/libs").
 SET const_gravity TO BODY:mu / BODY:RADIUS ^ 2.
-
-lock turnlimit to min(1, settings["TurnLimit"] / SHIP:GROUNDSPEED). //Scale the
+Wait 0.01.
+lock turnlimit to min(1, settings["TurnLimit"] / MAX(3,SHIP:GROUNDSPEED)). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
@@ -41,14 +41,25 @@ SET slopeSpeed TO settings["DefaultSpeed"].
 SET targetHeading TO 90. //Used for autopilot steering
 SET NORTHPOLE TO LATLNG( 90, 0). //Reference heading
 SET AG9 TO FALSE.
+SET AG2 TO TRUE.
 SET lockcounter TO 0.
 SET nextWaypointHeading TO 0.
 SET spc TO "     ".
 SET header TO "".
 SET waitCursor TO LIST("-","\","|","/").
 SET waitCount TO 0.
-SET coList TO LEXICON("Kerbin",0.33,"Mun",0.60,"Minmus",0.65,"Duna",0.4).  //  Need an equation to work out what friction coefficient is for given gravity
-
+SET coList TO LEXICON("Kerbin",1.1108,"Mun",0.60,"Minmus",0.65,"Duna",0.4,"Eve",0.3).  //  Need an equation to work out what friction coefficient is for given gravity
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNLOAD TO 30000.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:LOAD TO 29500.
+WAIT 0.001. // See paragraph above: "wait between load and pack changes"
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:PACK TO 39999.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNPACK TO 29000.
+wait 0.001.
+SET Ksp TO 0.01.
+SET Ksi TO 0.006.
+SET Ksd TO 0.006.
+SET SPid TO PIDLOOP(Ksp,Ksi,Ksd).
+SET page TO 0.
 
 SET overSpeedDownSlopeBrakeTime TO 0.3.
 SET extremeSlopeAngle TO 8.
@@ -76,7 +87,7 @@ FOR res IN reslist{
   }
 }
 LOCK chargeLevel TO ROUND(100*Electric:AMOUNT/Electric:CAPACITY).
-
+SET lastCharge TO Electric:AMOUNT.
 SET menu TO 0.
 SET nextWrite TO -1.
 //     0 Main Menu
@@ -130,14 +141,14 @@ ON AG1 {
 display_HUD().
 play_sounds("start").
 until runmode = -1 {
-  IF chargeLevel < 20 AND runmode <> 13
+  IF chargeLevel < 10 AND runmode <> 13
   {
     LIGHTS OFF.
     CLEARSCREEN.
     hold_poition(13).
     SET menu TO 4.
   }
-  else if chargeLevel > 20 AND runmode = 13
+  else if chargeLevel > 30 AND runmode = 13
   {
     restore_operations().
     SET menu TO 0.
@@ -220,13 +231,13 @@ until runmode = -1 {
         } else {
           if ABS(headingDifference) > 40 AND runmode <> 5 AND runmode <> 6 AND runmode <> 3 {
             play_sounds("direction").
-            set_speed(1,3).
+            set_speed(MAX(1,settings["DefaultSpeed"]/6),3).
           }
           if __grid:DISTANCE < 20 + stopDistance AND ABS(nextWaypointHeading) > 40 AND runmode <> 1 {
-            set_speed(1,1).
+            set_speed(MAX(1,settings["DefaultSpeed"]/4),1).
           }
           if ABS(pangle) > 5 AND runmode <> 2 {  // Predicted slope change angle
-            set_speed(1,2).
+            set_speed(MAX(1,settings["DefaultSpeed"]/4),2).
             play_sounds("slopealert").
           }
         }
@@ -248,7 +259,7 @@ until runmode = -1 {
             set_speed(0,6).
             SET lastEvent TO TIME:SECONDS.
           } else if runmode = 6 AND round(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent) > 10 {
-            set_speed(2).
+            set_speed(MAX(1,settings["DefaultSpeed"]/4)).
             SET lastEvent TO TIME:SECONDS.
           } else if runmode = 6 AND ROUND(GROUNDSPEED,1) > 0.0 AND (TIME:SECONDS - lastEvent) > 15 {
             LOCK targetHeading TO __grid:HEADING.
@@ -273,25 +284,35 @@ until runmode = -1 {
       IF targetspeed = 0 AND ROUND(GROUNDSPEED,1) = 0 {
         SET wtVAL TO 0.
         brakes on.
-      } else { //IF we should be going forward
+      } else {
         if brakesOn = false {
           brakes off.
         }
         if targetspeed > settings["DefaultSpeed"] {
           SET targetspeed TO settings["DefaultSpeed"].
         }
-        if Runmode <> 7{
+        if Runmode <> 7 {
           SET eWheelThrottle TO targetspeed - GROUNDSPEED.
           SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
                                               (looptime * eWheelThrottle))).
           SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
 
+          // Stop rollback at slow speeds
           if ABS(GROUNDSPEED) < 2 and runmode <> 0 {
-             set wtVAL to min( 0.3, max( -0.2, wtVAL)).
+             set wtVAL to min( 0.2, max( -0.2, wtVAL)).
           }
 
+          // If rover is rolling back then invert wtVAL to make it go forwards
           if targetspeed > 0 AND dir < 0 AND wtVAL < 0 {
             SET wtVAL TO -wtVAL.
+          }
+
+          // Slow down rover accelleration to stop it from wheelying in low gravity
+          if GROUNDSPEED < ABS(targetspeed)*0.5 OR GROUNDSPEED <= 2 {
+            SET wtVAL TO MIN(wtVAL, MAX(0.5,0.5*GROUNDSPEED)).
+          }
+          if ABS(currentSlopeAngle) > 10 AND GROUNDSPEED < 1 {
+            SET wtVAL TO wtVAL + (0.02 * ABS(currentSlopeAngle)).
           }
         } else {
           SET wtVAL TO 0.
@@ -307,7 +328,11 @@ until runmode = -1 {
         SET errorSteering TO errorSteering + 360.
       }
       SET desiredSteering TO -errorSteering / 20.
-      SET kturn TO min( 1, max( -1, desiredSteering)) * turnlimit.
+      if ABS(GROUNDSPEED) < MAX(2,settings["DefaultSpeed"]/4) {
+        SET kturn TO desiredSteering.
+      } else {
+        SET kturn TO min( 1, max( -1, desiredSteering )) * turnlimit.
+      }
     } ELSE {
       SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
     }
@@ -328,7 +353,7 @@ until runmode = -1 {
     }.
 
     // do we need to disable the brakes?
-    when brakesOn = true and (abs(GROUNDSPEED) <= ABS(targetspeed) OR time:seconds - lastBrake >= currentBrakeTime) then {
+    when brakesOn = true and (abs(GROUNDSPEED) <= ABS(targetspeed) OR time:seconds - lastBrake >= currentBrakeTime) AND targetspeed <> 0 then {
       brakes off.
       SET brakesOn TO false.
       preserve.
@@ -345,7 +370,6 @@ until runmode = -1 {
     if menu = 5 {
       SET TERMINAL:WIDTH TO 50.
       SET TERMINAL:HEIGHT TO 40.
-      SET TERMINAL:CHARWIDTH TO 8.
       SET TERMINAL:CHARHEIGHT TO 8.
       SET menu TO 0.
       display_HUD().
@@ -353,23 +377,33 @@ until runmode = -1 {
     LOCAL N IS K:TONUMBER(-99).
     IF K = TERMINAL:INPUT:UPCURSORONE
     {
-      SET __goal TO LATLNG(__goal:LAT+0.1,__goal:LNG).
+      SET __goal TO LATLNG(__goal:LAT+0.01,__goal:LNG).
       nav_marker().
     }
     ELSE IF K = TERMINAL:INPUT:DOWNCURSORONE
     {
-      SET __goal TO LATLNG(__goal:LAT-0.1,__goal:LNG).
+      SET __goal TO LATLNG(__goal:LAT-0.01,__goal:LNG).
       nav_marker().
     }
     ELSE IF K = TERMINAL:INPUT:LEFTCURSORONE
     {
-      SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.1).
-      nav_marker().
+      if menu = 1 {
+        SET page TO page - 1.
+        CLEARSCREEN.
+      } else {
+        SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.01).
+        nav_marker().
+      }
     }
     ELSE IF K = TERMINAL:INPUT:RIGHTCURSORONE
     {
-      SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.1).
-      nav_marker().
+      if menu = 1 {
+        SET page TO page + 1.
+        CLEARSCREEN.
+      } else {
+        SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.01).
+        nav_marker().
+      }
     }
     ELSE IF K = TERMINAL:INPUT:RETURN
     {
@@ -421,6 +455,7 @@ until runmode = -1 {
     ELSE IF K:TOUPPER = "W" {
       CLEARSCREEN.
       SET menu TO 1.
+      SET page TO 0.
       LOCAL WPS IS ALLWAYPOINTS().
       SET contractWayPoints TO LIST().
       // SET runmode TO 10.
@@ -485,12 +520,14 @@ until runmode = -1 {
         display_HUD().
         SET menu TO 0.
       } else if menu = 1 {
+        if N = 0 SET N TO 10.
+        SET N TO N + (page*10).
         if N <= contractWayPoints:LENGTH {
           LOCAL w IS contractWayPoints[N-1].
           RUNPATH("0:/astar-rover/astar","WAYPOINT",w:NAME,false).
           SET menu TO 0.
           if route:LENGTH <> 0 {
-            SET __goal TO LATLNG(route[route:LENGTH-1]:LAT+0.1,route[route:LENGTH-1]:LNG).
+            SET __goal TO LATLNG(route[route:LENGTH-1]:LAT,route[route:LENGTH-1]:LNG).
             start_navigation().
             SET header TO "  ---{   Navigating to " + w:NAME +"   }---".
             PRINT header AT (0,1).
@@ -527,13 +564,19 @@ else
 
   if menu = 1 {
     PRINT "Press a number to select a waypoint" AT (2, 3).
+    if page < 0 SET page TO FLOOR(contractWayPoints:LENGTH/10).
+    if page > FLOOR(contractWayPoints:LENGTH/10) SET page TO 0.
+    PRINT "Page " + (page+1) + " of " + (CEILING(contractWayPoints:LENGTH/10)) AT (4,20).
     LOCAL y IS 1.
-    FOR c IN contractWayPoints {
+    UNTIL y = 11 OR (y+(page*10)-1) >= contractWayPoints:LENGTH{
+      SET c TO contractWayPoints[y+(page*10)-1].
       PRINT "(" + y + ") " + c:NAME AT (4,y+4).
       LOCAL p IS c:GEOPOSITION.
       PRINT " " + round((p:DISTANCE/1000),2) + " km  " AT (30,y+4).
       SET y TO y+1.
+      if y = 11 break.
     }
+    WAIT 0.1.
   }
   else if menu = 3
   {
@@ -559,6 +602,7 @@ else
   else if menu = 0 {
     PRINT ": " +  ROUND( targetspeed, 1) + " m/s" + spc AT (18, 6).
     PRINT ": " +  ROUND( GROUNDSPEED,1) + " m/s" + spc AT (18, 7).
+    PRINT ": " + ROUND ((GROUNDSPEED * 18)/5) + " km/h" + spc AT (30,7).
     PRINT ": " +  round(__goal:DISTANCE/1000,2) + " km" + spc AT (18, 8).
 
     PRINT ": " +  ROUND( targetheading, 2) + spc AT (18, 10).
@@ -583,11 +627,17 @@ else
     PRINT ": " +  AG1 + "   " AT (18, 28).
 
     PRINT ": " +  ROUND( settings["Odometer"]/1000, 1) + " km" + spc AT (18, 30).
-    PRINT ": " +  ROUND( chargeLevel, 1) + "%" + spc AT (18, 31).
+    if lastCharge <= Electric:AMOUNT {
+      PRINT ": +" AT (18,31).
+    } ELSE {
+      PRINT ": -" AT (18,31).
+    }
+    PRINT ROUND( chargeLevel, 1) + "%" + spc AT (22, 31).
     if ABS(GROUNDSPEED) > 0 AND targetspeed <> 0 {
       PRINT ": " +  ROUND( get_slope_speed(), 2) + spc AT (18,34).
     }
 
+    PRINT ": " +  AG2 + "   " AT (18, 35).
     PRINT ": " + ROUND(wtVAL,3) + spc AT (37,10).
     PRINT ": " + ROUND(kTurn,3) + spc AT (37,11).
     PRINT ": " + ROUND(turnlimit,3) + spc AT (37,12).
@@ -635,6 +685,7 @@ FUNCTION display_HUD {
   PRINT "Electric" AT (2,31).
 
   PRINT "Slope Speed" AT (2,34).
+  PRINT "Send Data" AT (2,35).
   PRINT "wTVAL" AT (32,10).
   PRINT "kTurn" AT (32,11).
   PRINT "Limit" AT (32,12).
@@ -714,6 +765,7 @@ FUNCTION get_stop_distance {
   PARAMETER speed, gr IS gradient.
   return speed^2 / (2 * const_gravity * coList[BODY:NAME] + gr).
 }
+
 FUNCTION get_slope_speed {
   return SQRT(
       MAX(settings["DefaultSpeed"]/2,
@@ -747,6 +799,7 @@ FUNCTION hold_poition
   set_speed(0,mode).
   BRAKES ON.
   SET brakesOn TO TRUE.
+  SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
 }
 
 FUNCTION restore_operations
@@ -771,7 +824,6 @@ FUNCTION load_map
   IF l > 160 {
     SET TERMINAL:WIDTH TO (l/1.5) + 10.
     SET TERMINAL:HEIGHT TO (l/1.5) + 10.
-    SET TERMINAL:CHARWIDTH TO 6.
     SET TERMINAL:CHARHEIGHT TO 6.
   } else {
     SET TERMINAL:WIDTH TO (l) + 10.

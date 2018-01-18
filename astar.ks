@@ -13,7 +13,7 @@ LOCAL current_ipu IS CONFIG:IPU.
 LOCAL goal IS "".
 LOCAL wp IS "".
 
-LOCAL charSize IS LIST(TERMINAL:CHARHEIGHT,TERMINAL:CHARWIDTH).
+LOCAL charSize IS LIST(TERMINAL:CHARHEIGHT).
 
 LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
 
@@ -26,7 +26,7 @@ if input1 = "LATLNG" {
   SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
 }
 
-LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+LOCAL len IS MAX(100,MIN(300,CEILING((goal:DISTANCE/100)*3))).
 LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
 LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
 LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
@@ -36,7 +36,7 @@ PRINT "Initializing".
 PRINT "Graph Size   : " + len.
 PRINT "Starting Ref : " + sindex.
 
-LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+// LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
 LOCAL ts IS len + 10.
 LOCAL cs IS 8.
 IF len > 160 {
@@ -382,7 +382,6 @@ FUNCTION set_terminal {
   SET TERMINAL:WIDTH TO w.
   SET TERMINAL:HEIGHT TO h.
   SET CONFIG:IPU TO i.
-  SET TERMINAL:CHARWIDTH TO c.
   SET TERMINAL:CHARHEIGHT TO c.
 
 }

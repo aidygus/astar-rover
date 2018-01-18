@@ -22,7 +22,7 @@ LOCAL default_values IS LEXICON(
     "MaxSlope", LIST(1,0,45),
     "IPU", LIST(500,500,2000),
     "DefaultSpeed", LIST(1,1,50),
-    "TurnLimit", LIST(0.01,0.1,0.5),
+    "TurnLimit", LIST(0.1,0.1,3),
     "Sound",LIST(1,0,1)
 ).
 

@@ -26,7 +26,7 @@ if EXISTS("1:/config/settings.json") = FALSE {
 RUNPATH(vol+"/astar-rover/libs").
 SET const_gravity TO BODY:mu / BODY:RADIUS ^ 2.
 Wait 0.01.
-lock turnlimit to min(1, settings["TurnLimit"] / MAX(3,SHIP:GROUNDSPEED)). //Scale the
+lock turnlimit to min(1, settings["TurnLimit"] / SHIP:GROUNDSPEED). //Scale the
                    //turning radius based on __current speed
 SET TERMINAL:WIDTH TO 50.
 SET TERMINAL:HEIGHT TO 40.
@@ -55,10 +55,7 @@ WAIT 0.001. // See paragraph above: "wait between load and pack changes"
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:PACK TO 39999.
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNPACK TO 29000.
 wait 0.001.
-SET Ksp TO 0.01.
-SET Ksi TO 0.006.
-SET Ksd TO 0.006.
-SET SPid TO PIDLOOP(Ksp,Ksi,Ksd).
+SET DirectionOT TO 1.
 SET page TO 0.
 
 SET overSpeedDownSlopeBrakeTime TO 0.3.
@@ -69,7 +66,7 @@ SET cruiseSpeedBrakeTime TO 1.
 SET currentSlopeAngle TO 0.
 SET brakesOn TO TRUE.
 SET lastBrake TO -1.
-SET lastEvent TO -1.
+SET lastEvent TO LIST(TIME:SECONDS,0,0,0,0,0,0,0).
 SET lastBat TO -1.
 SET brakeUseCount TO 0.
 SET currentOverSpeed TO overSpeedCruise.
@@ -100,7 +97,6 @@ clearscreen.
 CLEARVECDRAWS().
 sas off.
 rcs off.
-lights on.
 BRAKES ON.
 LOCK throttle TO 0.
 
@@ -186,7 +182,7 @@ until runmode = -1 {
 
     SET facvec TO SHIP:FACING.
     SET targetspeed TO targetspeed + 0.1 * SHIP:CONTROL:PILOTWHEELTHROTTLE.
-    SET targetspeed TO max(-1, targetspeed).
+    SET targetspeed TO max(0, targetspeed).
 
     LOCAL predicted1 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5))).
     LOCAL predicted2 IS body:GEOPOSITIONOF(facvec + V(0,0,MAX(15,stopDistance+5)+1)).
@@ -215,7 +211,7 @@ until runmode = -1 {
       }
 
       if runmode <> 7 {
-        IF navpoints:LENGTH <> 0 AND rwaypoint = route:LENGTH-1 AND route[rwaypoint]:DISTANCE < 95 AND (TIME:SECONDS - lastEvent) > 15 {
+        IF navpoints:LENGTH <> 0 AND rwaypoint = route:LENGTH-1 AND route[rwaypoint]:DISTANCE < 95 AND (TIME:SECONDS - lastEvent[0]) > 15 {
           SET route TO LIST().
           SET targetspeed TO 0.
           SET rwaypoint TO -1.
@@ -225,18 +221,18 @@ until runmode = -1 {
           RUNPATH("0:/astar-rover/astar","LATLNG",gl,false).
           start_navigation().
         }
-        IF ROUND(GROUNDSPEED,1) = 0.0 AND abs(targetspeed) > 0  {
+        IF ROUND(GROUNDSPEED,1) = 0.0 AND abs(targetspeed) > 0  AND TIME:SECONDS - lastEvent[0] > 10 {
           SET runmode TO 5.
-          SET lastEvent TO TIME:SECONDS.
+          SET lastEvent[5] TO TIME:SECONDS.
         } else {
           if ABS(headingDifference) > 40 AND runmode <> 5 AND runmode <> 6 AND runmode <> 3 {
             play_sounds("direction").
             set_speed(MAX(1,settings["DefaultSpeed"]/6),3).
           }
-          if __grid:DISTANCE < 20 + stopDistance AND ABS(nextWaypointHeading) > 40 AND runmode <> 1 {
+          if __grid:DISTANCE < 5 + stopDistance AND ABS(nextWaypointHeading) > 40 AND runmode <> 1 {
             set_speed(MAX(1,settings["DefaultSpeed"]/4),1).
           }
-          if ABS(pangle) > 5 AND runmode <> 2 {  // Predicted slope change angle
+          if ABS(pangle) > 5 AND runmode <> 2 AND GROUNDSPEED > 2 {  // Predicted slope change angle
             set_speed(MAX(1,settings["DefaultSpeed"]/4),2).
             play_sounds("slopealert").
           }
@@ -246,27 +242,27 @@ until runmode = -1 {
             SET runmode TO 0.
             restore_speed().
           } else if runmode = 3 {
-            if ABS(headingDifference) < 10 {
+            if ABS(headingDifference) < 6 {
               restore_speed().
               SET runmode TO 0.
             }
-          } else if runmode = 5 AND ROUND(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent) > 10 {
+          } else if runmode = 5 AND ROUND(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent[5]) > 10 {
             play_sounds("alert").
-            SET targetspeed TO -1.
+            SET targetspeed TO MAX(1,settings["DefaultSpeed"]/4).
+            SET DirectionOT TO -1.
             LOCK targetHeading TO (__grid:HEADING - 90).
-            SET lastEvent TO TIME:SECONDS.
-          } else if runmode = 5 AND ROUND(GROUNDSPEED,1) > 0.0 AND (TIME:SECONDS - lastEvent) > 10 {
+            SET lastEvent[5] TO TIME:SECONDS.
+          } else if runmode = 5 AND ROUND(GROUNDSPEED,1) > 0.0 AND (TIME:SECONDS - lastEvent[5]) > 10 {
             set_speed(0,6).
-            SET lastEvent TO TIME:SECONDS.
-          } else if runmode = 6 AND round(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent) > 10 {
-            set_speed(MAX(1,settings["DefaultSpeed"]/4)).
-            SET lastEvent TO TIME:SECONDS.
-          } else if runmode = 6 AND ROUND(GROUNDSPEED,1) > 0.0 AND (TIME:SECONDS - lastEvent) > 15 {
+            SET DirectionOT TO 1.
+          } else if runmode = 6 AND round(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent[6]) > 10 {
+            set_speed(MAX(1,settings["DefaultSpeed"]/4),6).
+          } else if runmode = 6 AND ROUND(GROUNDSPEED,1) > 0.0 AND (TIME:SECONDS - lastEvent[6]) > 15 {
             LOCK targetHeading TO __grid:HEADING.
             SET runmode TO 3.
           }
         }
-        if __grid:DISTANCE < MAX(20,stopDistance) {
+        if __grid:DISTANCE < MAX(30,stopDistance) {
           next_waypoint(3).
         }
 
@@ -278,7 +274,7 @@ until runmode = -1 {
         SET header TO "---{   Rover has arrived at location  }---         " + spc.
         PRINT header AT (2,1).
         hold_poition(7).
-        SET lastEvent TO TIME:SECONDS.
+        SET lastEvent[0] TO TIME:SECONDS.
       }
 
       IF targetspeed = 0 AND ROUND(GROUNDSPEED,1) = 0 {
@@ -295,23 +291,23 @@ until runmode = -1 {
           SET eWheelThrottle TO targetspeed - GROUNDSPEED.
           SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
                                               (looptime * eWheelThrottle))).
-          SET wtVAL TO eWheelThrottle + iWheelThrottle.//PI controler
+          SET wtVAL TO eWheelThrottle + iWheelThrottle * DirectionOT.//PI controler
 
           // Stop rollback at slow speeds
-          if ABS(GROUNDSPEED) < 2 and runmode <> 0 {
+          if ABS(GROUNDSPEED) < 2 and runmode <> 0 AND wtVAL < 0.2 {
              set wtVAL to min( 0.2, max( -0.2, wtVAL)).
           }
 
           // If rover is rolling back then invert wtVAL to make it go forwards
-          if targetspeed > 0 AND dir < 0 AND wtVAL < 0 {
+          if targetspeed > 0 AND dir < 0 AND wtVAL < 0 AND DirectionOT = 1 {
             SET wtVAL TO -wtVAL.
           }
 
           // Slow down rover accelleration to stop it from wheelying in low gravity
-          if GROUNDSPEED < ABS(targetspeed)*0.5 OR GROUNDSPEED <= 2 {
+          if GROUNDSPEED < ABS(targetspeed)*0.5 OR GROUNDSPEED <= settings["DefaultSpeed"]/3 {
             SET wtVAL TO MIN(wtVAL, MAX(0.5,0.5*GROUNDSPEED)).
           }
-          if ABS(currentSlopeAngle) > 10 AND GROUNDSPEED < 1 {
+          if ABS(currentSlopeAngle) > 10 AND GROUNDSPEED < settings["DefaultSpeed"]/3 {
             SET wtVAL TO wtVAL + (0.02 * ABS(currentSlopeAngle)).
           }
         } else {
@@ -320,7 +316,7 @@ until runmode = -1 {
       }
     }
 
-    IF AG1 { //Activate autopilot if Action group 1 is on
+    IF AG1 AND runmode <> 7 { //Activate autopilot if Action group 1 is on
       SET errorSteering TO (targetheading - cHeading).
       IF errorSteering > 180 { //Make sure the headings make sense
         SET errorSteering TO errorSteering - 360.
@@ -583,13 +579,13 @@ else
     CLEARSCREEN.
     center("---{    CONNECTION LOST    }---",5).
 
-    if TIME:SECONDS - lastEvent > 0.3 {
+    if TIME:SECONDS - lastEvent[0] > 0.3 {
       PRINT "Acquiring Signal " + (waitCursor[waitCount]) + spc AT (2,10).
       SET waitCount TO waitCount + 1.
       if waitCount = 4 {
         SET waitCount TO 0.
       }
-      SET lastEvent TO TIME:SECONDS.
+      SET lastEvent[0] TO TIME:SECONDS.
     }
   }
   else if menu = 4
@@ -753,12 +749,14 @@ FUNCTION set_speed
   }
   if mode <> -1 {
     SET runmode TO mode.
+    SET lastEvent[mode] TO TIME:SECONDS.
   }
 }
 
 FUNCTION restore_speed
 {
   SET targetspeed TO settings["DefaultSpeed"].
+  SET lastEvent[0] TO TIME:SECONDS.
 }
 
 FUNCTION get_stop_distance {
@@ -807,13 +805,12 @@ FUNCTION restore_operations
   SET runmode TO 0.
   CLEARSCREEN.
   display_HUD().
-  LIGHTS ON.
   if route:LENGTH <> 0 {
     restore_speed().
     SET brakesOn TO FALSE.
     SET WARP TO 0.
   }
-  SET lastEvent TO TIME:SECONDS.
+  SET lastEvent[0] TO TIME:SECONDS.
 }
 
 FUNCTION load_map

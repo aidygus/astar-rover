@@ -17,6 +17,9 @@ LOCAL charSize IS LIST(TERMINAL:CHARHEIGHT).
 
 LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
 
+
+LOCAL mpla IS 2*CONSTANT:PI*BODY:RADIUS/360.
+
 if input1 = "LATLNG" {
   SET goal TO LATLNG(input2:LAT,input2:LNG).
 } else if input1 = "WAYPOINT" {
@@ -246,14 +249,14 @@ FUNCTION test_neighbour{
 
   LOCAL grid IS LATLNG(_grid:LAT+offsety,_grid:LNG+offsetx).
   LOCAL heightdiff IS grid:TERRAINHEIGHT-node["TERRAINHEIGHT"].
-
+  LOCAL maxAngle IS test_angle(grid).
   //  We want to avoid trying to drive up or down cliffs and especially taking a dip if we can help it
   LOCAL setlist TO 0.
   LOCAL distance IS (grid:POSITION-node["POSITION"]):MAG.
   LOCAL angle IS ARCSIN(heightdiff/distance).
   LOCAL weight TO 0.
   LOCAL c IS " ".
-  if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 {
+  if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 AND maxAngle < 25 {
       SET c TO ".".
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
@@ -289,6 +292,23 @@ FUNCTION test_neighbour{
     return FALSE.
   }
 
+}
+
+FUNCTION test_angle {
+  PARAMETER grid.
+
+  LOCAL mplo IS mpla * COS(grid:LAT).
+  LOCAL tg IS LATLNG(grid:LAT,grid:LNG).
+  LOCAL ma IS 0.
+  LOCAL angle IS 0.
+  for ne IN neighbourlist {
+    SET tg TO LATLNG(grid:LAT+(ne[0]/mpla),grid:LNG+(ne[1]/mplo)).
+    SET angle TO ARCSIN(ABS(grid:TERRAINHEIGHT-tg:TERRAINHEIGHT)/(grid:POSITION-tg:POSITION):MAG).
+    if angle > ma {
+      SET ma TO angle.
+    }
+  }
+  return ma.
 }
 
 // /**

@@ -38,7 +38,8 @@ if EXISTS("1:/config/settings.json") = FALSE {
       "TurnLimit", 0.2,
       "Sound", 1,
       "Odometer",0,
-      "Version",rversion
+      "Version",rversion,
+      "SendScience",True
     ).
   }
 } else {

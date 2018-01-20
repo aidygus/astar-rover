@@ -41,7 +41,7 @@ SET slopeSpeed TO settings["DefaultSpeed"].
 SET targetHeading TO 90. //Used for autopilot steering
 SET NORTHPOLE TO LATLNG( 90, 0). //Reference heading
 SET AG9 TO FALSE.
-SET AG2 TO TRUE.
+SET AG2 TO (settings["SendScience"] = 1).
 SET lockcounter TO 0.
 SET nextWaypointHeading TO 0.
 SET spc TO "     ".
@@ -50,7 +50,7 @@ SET waitCursor TO LIST("-","\","|","/").
 SET waitCount TO 0.
 SET coList TO LEXICON("Kerbin",1.1108,"Mun",0.60,"Minmus",0.65,"Duna",0.4,"Eve",0.3).  //  Need an equation to work out what friction coefficient is for given gravity
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNLOAD TO 30000.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:LOAD TO 29500.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:LOAD TO 28000.
 WAIT 0.001. // See paragraph above: "wait between load and pack changes"
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:PACK TO 39999.
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNPACK TO 29000.
@@ -66,7 +66,7 @@ SET cruiseSpeedBrakeTime TO 1.
 SET currentSlopeAngle TO 0.
 SET brakesOn TO TRUE.
 SET lastBrake TO -1.
-SET lastEvent TO LIST(TIME:SECONDS,0,0,0,0,0,0,0).
+SET lastEvent TO LIST(TIME:SECONDS,0,0,0,0,0,0,0,0,0,0,0,0,0).
 SET lastBat TO -1.
 SET brakeUseCount TO 0.
 SET currentOverSpeed TO overSpeedCruise.
@@ -132,6 +132,10 @@ ON AG1 {
     center(spc + spc + spc + "---{   Manual control   }---" + spc + spc + spc,1).
   }
   PRESERVE.
+}
+ON AG2 {
+    SET settings["SendScience"] TO AG2.
+    WRITEJSON(settings,"1:/config/settings.json").
 }
 
 display_HUD().
@@ -275,6 +279,7 @@ until runmode = -1 {
         PRINT header AT (2,1).
         hold_poition(7).
         SET lastEvent[0] TO TIME:SECONDS.
+        COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:NAME+".json").
       }
 
       IF targetspeed = 0 AND ROUND(GROUNDSPEED,1) = 0 {
@@ -366,7 +371,7 @@ until runmode = -1 {
     if menu = 5 {
       SET TERMINAL:WIDTH TO 50.
       SET TERMINAL:HEIGHT TO 40.
-      SET TERMINAL:CHARHEIGHT TO 8.
+      SET TERMINAL:CHARHEIGHT TO 12.
       SET menu TO 0.
       display_HUD().
     }
@@ -427,6 +432,7 @@ until runmode = -1 {
     }
     ELSE IF K = TERMINAL:INPUT:HOMECURSOR {
       if menu <> 0 {
+        SET TERMINAL:CHARHEIGHT TO 12.
         SET runmode TO 0.
         display_HUD().
         SET menu TO 0.

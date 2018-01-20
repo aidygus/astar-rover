@@ -242,13 +242,11 @@ until runmode = -1 {
           }
         }
         if runmode <> 0 {
-          if runmode = 2 AND ABS(pangle) < 5 {
-            SET runmode TO 0.
+          if runmode = 2 AND ABS(pangle) < 5  AND TIME:SECONDS-lastEvent[2] > 2 {
             restore_speed().
           } else if runmode = 3 {
             if ABS(headingDifference) < 6 {
               restore_speed().
-              SET runmode TO 0.
             }
           } else if runmode = 5 AND ROUND(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent[5]) > 10 {
             play_sounds("alert").
@@ -763,6 +761,7 @@ FUNCTION restore_speed
 {
   SET targetspeed TO settings["DefaultSpeed"].
   SET lastEvent[0] TO TIME:SECONDS.
+  SET runmode TO 0.
 }
 
 FUNCTION get_stop_distance {

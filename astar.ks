@@ -269,7 +269,7 @@ FUNCTION test_neighbour{
       SET c TO "v".
       SET weight TO 1.
     } else {
-      SET c TO "^".  // Do Nothing for now, highlight cell has been touched visially but is not a valid route from this point
+      SET c TO "^".
       SET weight TO 1.
     }
   }

@@ -15,15 +15,18 @@ IF EXISTS("1:/astar-rover/libs.km") {
   SET vol TO "1:".
 }
 
+RUNONCEPATH(vol+"/astar-rover/libs").
+RUNPATH(vol+"/astar-rover/astar").
+RUNPATH("0:/astar-rover/setup",TRUE).
+
 if EXISTS("1:/config/settings.json") = FALSE {
-  runpath("0:/astar-rover/setup").
+  setup_main().
   REBOOT.
 } else {
   SET settings TO READJSON("1:/config/settings.json").
   COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:NAME+".json").
 }
 
-RUNPATH(vol+"/astar-rover/libs").
 SET const_gravity TO BODY:mu / BODY:RADIUS ^ 2.
 Wait 0.01.
 lock turnlimit to min(1, settings["TurnLimit"] / SHIP:GROUNDSPEED). //Scale the
@@ -48,7 +51,7 @@ SET spc TO "     ".
 SET header TO "".
 SET waitCursor TO LIST("-","\","|","/").
 SET waitCount TO 0.
-SET coList TO LEXICON("Kerbin",1.1108,"Mun",0.60,"Minmus",0.65,"Duna",0.4,"Eve",0.3).  //  Need an equation to work out what friction coefficient is for given gravity
+SET coList TO LEXICON("Kerbin",1.1108,"Mun",0.60,"Minmus",1.0872,"Duna",0.4,"Eve",0.3).  //  Need an equation to work out what friction coefficient is for given gravity
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNLOAD TO 30000.
 SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:LOAD TO 28000.
 WAIT 0.001. // See paragraph above: "wait between load and pack changes"
@@ -57,6 +60,7 @@ SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNPACK TO 29000.
 wait 0.001.
 SET DirectionOT TO 1.
 SET page TO 0.
+SET CONFIG:IPU TO 500.
 
 SET overSpeedDownSlopeBrakeTime TO 0.3.
 SET extremeSlopeAngle TO 8.
@@ -95,9 +99,7 @@ SET nextWrite TO -1.
 
 clearscreen.
 CLEARVECDRAWS().
-sas off.
 rcs off.
-BRAKES ON.
 LOCK throttle TO 0.
 
 SET runmode TO 0.
@@ -110,7 +112,7 @@ SET runmode TO 0.
     //    5  Has hit an obstacle.
     //    6  Attempting to move round obstacle.
     //    7  Manual Hold
-
+    //    8 SAS Hold
     //    12 No Connection
 
 LOCK __current TO SHIP:GEOPOSITION.
@@ -147,6 +149,7 @@ until runmode = -1 {
     CLEARSCREEN.
     hold_poition(13).
     SET menu TO 4.
+    powersave().
   }
   else if chargeLevel > 30 AND runmode = 13
   {
@@ -205,6 +208,11 @@ until runmode = -1 {
       // IF runmode = 0 { //Govern the rover
 
       SET headingDifference TO route[rwaypoint]:HEADING - cHeading.
+      if headingDifference > 180 {
+        SET headingDifference TO headingDifference - 360.
+      } else IF headingDifference < -180 {
+        SET headingDifference TO headingDifference + 360.
+      }
       if rwaypoint+1 <> route:LENGTH {
         SET nextWaypointHeading TO route[rwaypoint+1]:HEADING - cHeading.
         IF nextWaypointHeading > 180 { //Make sure the headings make sense
@@ -221,9 +229,12 @@ until runmode = -1 {
         SET lastEvent[0] TO TIME:SECONDS.
         COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:NAME+".json").
       }
-      if ABS(headingDifference) > 40 AND runmode <> 5 AND runmode <> 6 AND runmode <> 3 and runmode <> 7 AND AG1 {
+      if ABS(headingDifference) > 20 AND runmode <> 5 AND runmode <> 6 AND runmode <> 3 and runmode <> 7 AND AG1 {
         play_sounds("direction").
         set_speed(MAX(1,settings["DefaultSpeed"]/6),3).
+      } else
+      if runmode = 3 AND Time:SECONDS - lastEvent[3] > 10 AND ABS(headingDifference) < 3 AND __grid:DISTANCE > MAX(30,stopDistance){
+        restore_speed().
       }
       if __grid:DISTANCE < MAX(30,stopDistance) {
         next_waypoint(3).
@@ -237,7 +248,7 @@ until runmode = -1 {
         SET runmode TO 0.
         LOCAL gl IS navpoints[0].
         navpoints:REMOVE(0).
-        RUNPATH("0:/astar-rover/astar","LATLNG",gl,false).
+        astar_main("LATLNG",gl,false).
         start_navigation().
       }
       IF ROUND(GROUNDSPEED,1) = 0.0 AND abs(targetspeed) > 0  AND TIME:SECONDS - lastEvent[0] > 10 {
@@ -255,10 +266,6 @@ until runmode = -1 {
       if runmode <> 0 {
         if runmode = 2 AND ABS(pangle) < 5  AND TIME:SECONDS-lastEvent[2] > 2 {
           restore_speed().
-        } else if runmode = 3 {
-          if ABS(headingDifference) < 6 {
-            restore_speed().
-          }
         } else if runmode = 5 AND ROUND(GROUNDSPEED,1) = 0.0 AND (TIME:SECONDS - lastEvent[5]) > 10 {
           play_sounds("alert").
           SET targetspeed TO MAX(1,settings["DefaultSpeed"]/4).
@@ -290,7 +297,7 @@ until runmode = -1 {
       if targetspeed > settings["DefaultSpeed"] {
         SET targetspeed TO settings["DefaultSpeed"].
       }
-      if Runmode <> 7 {
+      if Runmode <> 7 OR GROUNDSPEED > 0 {
         SET eWheelThrottle TO targetspeed - GROUNDSPEED.
         SET iWheelThrottle TO min( 1, max( -1, iWheelThrottle +
                                             (looptime * eWheelThrottle))).
@@ -327,11 +334,7 @@ until runmode = -1 {
         SET errorSteering TO errorSteering + 360.
       }
       SET desiredSteering TO -errorSteering / 20.
-      if ABS(GROUNDSPEED) < MAX(2,settings["DefaultSpeed"]/4) {
-        SET kturn TO desiredSteering.
-      } else {
-        SET kturn TO min( 1, max( -1, desiredSteering )) * turnlimit.
-      }
+      SET kturn TO min( 1, max( -1, desiredSteering )) * turnlimit.
     } ELSE {
       SET kturn TO turnlimit * SHIP:CONTROL:PILOTWHEELSTEER.
     }
@@ -361,6 +364,10 @@ until runmode = -1 {
   if wpm:LENGTH <> 0 {
     nav_lines().
   }
+
+  if SAS AND TIME:SECONDS - lastEvent[8] > 15 AND AG1 {
+    SAS OFF.
+  }
   //Handle User Input using action groups
   IF TERMINAL:INPUT:HASCHAR
   {
@@ -376,12 +383,12 @@ until runmode = -1 {
     LOCAL N IS K:TONUMBER(-99).
     IF K = TERMINAL:INPUT:UPCURSORONE
     {
-      SET __goal TO LATLNG(__goal:LAT+0.01,__goal:LNG).
+      SET __goal TO LATLNG(__goal:LAT+settings["Increments"],__goal:LNG).
       nav_marker().
     }
     ELSE IF K = TERMINAL:INPUT:DOWNCURSORONE
     {
-      SET __goal TO LATLNG(__goal:LAT-0.01,__goal:LNG).
+      SET __goal TO LATLNG(__goal:LAT-settings["Increments"],__goal:LNG).
       nav_marker().
     }
     ELSE IF K = TERMINAL:INPUT:LEFTCURSORONE
@@ -390,7 +397,7 @@ until runmode = -1 {
         SET page TO page - 1.
         CLEARSCREEN.
       } else {
-        SET __goal TO LATLNG(__goal:LAT,__goal:LNG-0.01).
+        SET __goal TO LATLNG(__goal:LAT,__goal:LNG-settings["Increments"]).
         nav_marker().
       }
     }
@@ -400,16 +407,16 @@ until runmode = -1 {
         SET page TO page + 1.
         CLEARSCREEN.
       } else {
-        SET __goal TO LATLNG(__goal:LAT,__goal:LNG+0.01).
+        SET __goal TO LATLNG(__goal:LAT,__goal:LNG+settings["Increments"]).
         nav_marker().
       }
     }
     ELSE IF K = TERMINAL:INPUT:RETURN
     {
       if navpoints:LENGTH = 0 {
-        RUNPATH("0:/astar-rover/astar","LATLNG",__goal,false).
+        astar_main("LATLNG",__goal,false).
       } else {
-        RUNPATH("0:/astar-rover/astar","LATLNG",navpoints[0],false).
+        astar_main("LATLNG",navpoints[0],false).
         navpoints:REMOVE(0).
       }
       start_navigation().
@@ -466,8 +473,9 @@ until runmode = -1 {
       }
     }
     ELSE IF K:TOUPPER = "C" {
-      runpath("0:/astar-rover/setup").
+      setup_main().
       SET settings TO READJSON("1:/config/settings.json").
+      COPYPATH("1:/config/settings.json","0:/astar-rover/backup/"+SHIP:NAME+".json").
       display_HUD().
     }
     ELSE IF K:TOUPPER = "S" {
@@ -527,7 +535,7 @@ until runmode = -1 {
         SET N TO N + (page*10).
         if N <= contractWayPoints:LENGTH {
           LOCAL w IS contractWayPoints[N-1].
-          RUNPATH("0:/astar-rover/astar","WAYPOINT",w:NAME,false).
+          astar_main("WAYPOINT",w:NAME,false).
           SET menu TO 0.
           if route:LENGTH <> 0 {
             SET __goal TO LATLNG(route[route:LENGTH-1]:LAT,route[route:LENGTH-1]:LNG).
@@ -704,6 +712,7 @@ FUNCTION nav_marker {
               __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
               __goal:POSITION - __goal:ALTITUDEPOSITION(__goal:TERRAINHEIGHT+1000),
               Green, "", 1, true,50).
+    center("---{   LAT "+round(__goal:LAT,2)+" LNG "+round(__goal:LNG,2)+"  }---         " + spc,1).
 }
 
 FUNCTION waypoint_marker {
@@ -739,6 +748,7 @@ FUNCTION start_navigation
   CLEARSCREEN.
   WRITEJSON(settings,"1:/config/settings.json").
   display_HUD().
+  SAS ON.
   if route:LENGTH <> 0 {
   SET rwaypoint TO 1.
     SET __grid TO LATLNG(route[rwaypoint]:LAT,route[rwaypoint]:LNG).
@@ -755,6 +765,8 @@ FUNCTION set_speed
   PARAMETER spd, mode is -1.
   if spd < targetspeed {
     SET targetspeed TO spd.
+    SAS ON.
+    SET lastEvent[8] TO TIME:SECONDS.
   }
   if mode <> -1 {
     SET runmode TO mode.
@@ -767,6 +779,7 @@ FUNCTION restore_speed
   SET targetspeed TO settings["DefaultSpeed"].
   SET lastEvent[0] TO TIME:SECONDS.
   SET runmode TO 0.
+  SAS ON.
 }
 
 FUNCTION get_stop_distance {
@@ -813,9 +826,9 @@ FUNCTION hold_poition
 
 FUNCTION restore_operations
 {
-  SET runmode TO 0.
   CLEARSCREEN.
   display_HUD().
+  powersave(TRUE).
   if route:LENGTH <> 0 {
     restore_speed().
     SET brakesOn TO FALSE.
@@ -842,4 +855,17 @@ FUNCTION load_map
     PRINT row AT (0,y).
     SET y TO y + 1.
   }
+}
+
+FUNCTION powersave {
+  PARAMETER op IS FALSE.
+  LOCAL ev IS "DEACTIVATE".
+  if OP {
+      SET ev TO "ACTIVATE".
+  }
+  SET P TO SHIP:PARTSDUBBEDPATTERN("Communotron").
+  FOR A IN P {
+    A:GETMODULE("ModuleRTAntenna"):DOEVENT(ev).
+  }
+
 }

@@ -11,6 +11,7 @@ FUNCTION center {
 
 FUNCTION update_setting {
   PARAMETER k,v.
+  LOCAL settings IS READJSON("1:/config/settings.json").
   SET settings[k] TO v.
   WRITEJSON(settings,"1:/config/settings.json").
 }

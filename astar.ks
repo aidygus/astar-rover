@@ -1,93 +1,107 @@
-PARAMETER input1 IS 1, input2 IS 1, debug IS true.
-SET vol TO "0:".
-if EXISTS ("1:/astar-rover/libs.km") {
-  SET vol TO "1:".
+
+  SET vol TO "0:".
+  if EXISTS ("1:/astar-rover/libs.km") {
+    SET vol TO "1:".
+  }
+  RUNONCEPATH(vol+"/astar-rover/libs").
+
+  // RUNPATH("0:/astar-rover/libs.ks").
+
+  LOCAL asrunmode IS 0.
+  LOCAL current_ipu IS CONFIG:IPU.
+  LOCAL debug IS FALSE.
+
+  LOCAL goal IS "".
+  LOCAL wp IS "".
+
+  LOCAL charSize IS LIST(TERMINAL:CHARHEIGHT).
+
+  LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
+  LOCAL len IS 100.
+  LOCAL gDist IS 0.
+  LOCAL gindex IS 0.  //  Grid reference for the center of the graph which is the goal
+  LOCAL sindex IS 0.
+  LOCAL ts IS len + 10.
+  LOCAL cs IS 8.
+  LOCAL r IS "".
+  LOCAL m IS LIST().
+
+  LOCAL map IS LEXICON().  // Node list
+  LOCAL openset IS LEXICON(). // Open Set
+  LOCAL closedset IS LEXICON(). // Closed Set
+  LOCAL fscorelist IS LEXICON().// fscore list
+  LOCAL fscore IS LEXICON().
+  LOCAL gscore IS LEXICON().
+  LOCAL camefrom IS LEXICON().
+  LOCAL neighbourlist IS LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
+  LOCAL vex IS LIST().
+
+  LOCAL latdist IS 0.  //  Calculate the distance between each graph segment
+  LOCAL lngdist IS 0.
+
+
+  LOCAL mpla IS 2*CONSTANT:PI*BODY:RADIUS/360.
+
+
+FUNCTION astar_main {
+  PARAMETER input1 IS 1, input2 IS 1, debug IS true.
+  if input1 = "LATLNG" {
+    SET goal TO LATLNG(input2:LAT,input2:LNG).
+  } else if input1 = "WAYPOINT" {
+    SET wp TO WAYPOINT(input2).
+    SET goal TO wp:GEOPOSITION.
+  } else {
+    SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
+  }
+
+  SET asrunmode TO 0.
+  SET debug TO debug.
+
+  SET len TO MAX(100,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+  SET gDist TO CEILING(goal:DISTANCE/(len/3)).
+  SET gindex TO CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
+  SET sindex TO gindex - FLOOR(goal:DISTANCE/gDist).
+
+  SET latdist TO (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
+  SET lngdist TO (goal:LNG-start:LNG) / (gindex-sindex).
+  CLEARSCREEN.
+  PRINT "Initializing".
+  PRINT "Graph Size   : " + len.
+  PRINT "Starting Ref : " + sindex.
+
+  // SET len TO MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
+  SET ts TO len + 10.
+  SET cs TO 8.
+  IF len > 160 {
+    SET ts TO (len/1.5) + 10.
+    SET cs TO 6.
+  }
+
+  set_terminal(ts,ts,settings["IPU"],cs).
+
+  FROM {LOCAL c IS 0.} UNTIL c = len STEP { SET c TO c+1.} DO {
+    SET r TO r + " ".
+  }
+
+  FROM {LOCAL c IS 0.} UNTIL c = len STEP { SET c TO c+1.} DO {
+    m:ADD(r).
+  }
+
+  CLEARSCREEN.
+  CLEARVECDRAWS().
+
+  place_marker(start,red,5).
+  place_marker(goal,green,100,1000).
+
+  GLOBAL route IS astar(sindex,gindex).
+  CLEARVECDRAWS().
+  clear_down().
+  if route:LENGTH = 0 {
+    PRINT "---{  Route can not be found  }---" AT (2,1).
+  }
+
+  set_terminal(50,40,current_ipu,charSize[0]).
 }
-RUNPATH(vol+"/astar-rover/libs").
-
-// RUNPATH("0:/astar-rover/libs.ks").
-
-LOCAL asrunmode IS 0.
-LOCAL current_ipu IS CONFIG:IPU.
-
-LOCAL goal IS "".
-LOCAL wp IS "".
-
-LOCAL charSize IS LIST(TERMINAL:CHARHEIGHT).
-
-LOCAL start IS SHIP:GEOPOSITION.              // Get starting POSITION
-
-
-LOCAL mpla IS 2*CONSTANT:PI*BODY:RADIUS/360.
-
-if input1 = "LATLNG" {
-  SET goal TO LATLNG(input2:LAT,input2:LNG).
-} else if input1 = "WAYPOINT" {
-  SET wp TO WAYPOINT(input2).
-  SET goal TO wp:GEOPOSITION.
-} else {
-  SET goal TO LATLNG(start:LAT+input1,start:LNG+input2).  // Specify the physical lat/lan of the goal.
-}
-
-LOCAL len IS MAX(100,MIN(300,CEILING((goal:DISTANCE/100)*3))).
-LOCAL gDist IS CEILING(goal:DISTANCE/(len/3)).
-LOCAL gindex IS CEILING((len-1)/2).  //  Grid reference for the center of the graph which is the goal
-LOCAL sindex IS gindex - FLOOR(goal:DISTANCE/gDist).
-
-CLEARSCREEN.
-PRINT "Initializing".
-PRINT "Graph Size   : " + len.
-PRINT "Starting Ref : " + sindex.
-
-// LOCAL len IS MAX(50,MIN(300,CEILING((goal:DISTANCE/100)*3))).
-LOCAL ts IS len + 10.
-LOCAL cs IS 8.
-IF len > 160 {
-  SET ts TO (len/1.5) + 10.
-  SET cs TO 6.
-}
-
-set_terminal(ts,ts,settings["IPU"],cs).
-
-LOCAL r IS "".
-LOCAL m IS LIST().
-FROM {LOCAL c IS 0.} UNTIL c = len STEP { SET c TO c+1.} DO {
-  SET r TO r + " ".
-}
-
-FROM {LOCAL c IS 0.} UNTIL c = len STEP { SET c TO c+1.} DO {
-  m:ADD(r).
-}
-
-LOCAL map IS LEXICON().  // Node list
-LOCAL openset IS LEXICON(). // Open Set
-LOCAL closedset IS LEXICON(). // Closed Set
-LOCAL fscorelist IS LEXICON().// fscore list
-LOCAL fscore IS LEXICON().
-LOCAL gscore IS LEXICON().
-LOCAL camefrom IS LEXICON().
-LOCAL neighbourlist IS LIST(LIST(1,0),LIST(1,-1),LIST(0,-1),LIST(-1,1),LIST(-1,0),LIST(-1,-1),LIST(0,1),LIST(1,1)).  // Neighbours of cells.
-
-
-
-LOCAL latdist IS (goal:LAT-start:LAT) / (gindex-sindex).  //  Calculate the distance between each graph segment
-LOCAL lngdist IS (goal:LNG-start:LNG) / (gindex-sindex).
-
-CLEARSCREEN.
-CLEARVECDRAWS().
-LOCAL vex IS LIST().
-
-place_marker(start,red,5).
-place_marker(goal,green,100,1000).
-
-GLOBAL route IS astar(sindex,gindex).
-CLEARVECDRAWS().
-clear_down().
-if route:LENGTH = 0 {
-  PRINT "---{  Route can not be found  }---" AT (2,1).
-}
-
-set_terminal(50,40,current_ipu,charSize[0]).
 
 //    /**
 //    @sindex coordinates of the starting x cell in the graph
@@ -256,7 +270,7 @@ FUNCTION test_neighbour{
   LOCAL angle IS ARCSIN(heightdiff/distance).
   LOCAL weight TO 0.
   LOCAL c IS " ".
-  if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 AND maxAngle < 25 {
+  if angle > settings["MinSlope"] AND angle < settings["MaxSlope"] AND ROUND(grid:TERRAINHEIGHT) >= 0 AND maxAngle < MAX(ABS(Settings["MinSlope"]),Settings["MaxSlope"]) {
       SET c TO ".".
       place_marker(grid,yellow,5,100,round(angle),0.05).
       SET setlist TO 1.
@@ -397,7 +411,7 @@ FUNCTION clear_down {
 }
 
 FUNCTION set_terminal {
-  PARAMETER w IS 50, h is 40, i is 250, c is 8.
+  PARAMETER w IS 50, h is 40, i is 500, c is 12.
 
   SET TERMINAL:WIDTH TO w.
   SET TERMINAL:HEIGHT TO h.

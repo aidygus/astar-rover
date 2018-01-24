@@ -1,6 +1,7 @@
-RUNPATH("0:/astar-rover/libs.ks").
+PARAMETER automated IS FALSE.
+RUNONCEPATH("0:/astar-rover/libs.ks").
 
-SET rversion TO OPEN("0:/astar-rover/config/version"):READALL:STRING. //"2.3.1".
+LOCAL rversion IS OPEN("0:/astar-rover/config/version"):READALL:STRING. //"2.3.1".
 
 LOCAL semode IS 0.
 // Valid semodes
@@ -18,64 +19,89 @@ LOCAL settings IS LEXICON().
 LOCAL error IS "".
 LOCAL value IS -1.
 LOCAL default_values IS LEXICON(
-    "MinSlope", LIST(1,-45,0),
-    "MaxSlope", LIST(1,0,45),
-    "IPU", LIST(500,500,2000),
-    "DefaultSpeed", LIST(1,1,50),
-    "TurnLimit", LIST(0.1,0.1,3),
-    "Sound",LIST(1,0,1)
+    "MinSlope", LIST(1,-45,0,"Min Slope"),
+    "MaxSlope", LIST(1,0,45,"Max Slope"),
+    "IPU", LIST(500,500,2000,"IPU"),
+    "DefaultSpeed", LIST(1,1,50,"Default Speed"),
+    "TurnLimit", LIST(0.1,0.1,3,"Turn Limit"),
+    "Sound",LIST(1,0,1,"Enable Sound"),
+    "Increments",LIST(0.1,0.1,1,"LAT/LNG Increments")
 ).
 
-if EXISTS("1:/config/settings.json") = FALSE {
-  if EXISTS("0:/astar-rover/backup/" + SHIP:NAME + ".json") {
-    SET settings TO READJSON("0:/astar-rover/backup/" + SHIP:NAME + ".json").
-  } else {
-    SET settings TO LEXICON(
-      "MinSlope", -15,
-      "MaxSlope", 25,
-      "IPU", 2000,
-      "DefaultSpeed", 4,
-      "TurnLimit", 0.2,
-      "Sound", 1,
-      "Odometer",0,
-      "Version",rversion,
-      "SendScience",True
-    ).
-  }
-} else {
-  SET settings TO READJSON("1:/config/settings.json").
-  SET settings["Version"] TO rversion.
-  WRITEJSON(settings,"1:/config/settings.json").
+LOCAL default_settings IS LEXICON(
+  "MinSlope", -15,
+  "MaxSlope", 25,
+  "IPU", 2000,
+  "DefaultSpeed", 4,
+  "TurnLimit", 0.2,
+  "Sound", 1,
+  "Odometer",0,
+  "Version",rversion,
+  "SendScience",True,
+  "Increments",0.1,
+  "fCE",LEXICON(BODY:NAME,1)
+).
+
+LOCAL row IS "----------------------------------------------".
+
+if automated = FALSE {
+  setup_main().
 }
-main_hud().
 
-SET row TO "----------------------------------------------".
+FUNCTION setup_main {
+  SET semode TO 0.
+  init_settings().
+  main_hud().
 
-UNTIL semode = -1 {
-  PRINT "Runmode : " + semode AT (2,TERMINAL:HEIGHT-2).
-  IF TERMINAL:INPUT:HASCHAR {
-    LOCAL K IS TERMINAL:INPUT:GETCHAR().
-    LOCAL N IS K:TONUMBER(-99).
-    IF semode = 1 {
-      SET semode TO 0.
-      main_hud().
-    }
-    IF K = TERMINAL:INPUT:ENDCURSOR {
-      SET semode TO -1.
-      CLEARSCREEN.
-    } else IF K = TERMINAL:INPUT:HOMECURSOR {
-      SET semode TO 0.
-      main_hud().
-    } else if (semode = 2) {
-      handler_settings(K,N).
-    } ELSE IF N <> -99 {
-      if semode = 0 {
-          handler_hud(N).
+
+  UNTIL semode = -1 {
+    PRINT "Runmode : " + semode AT (2,TERMINAL:HEIGHT-2).
+    IF TERMINAL:INPUT:HASCHAR {
+      LOCAL K IS TERMINAL:INPUT:GETCHAR().
+      LOCAL N IS K:TONUMBER(-99).
+      IF semode = 1 {
+        SET semode TO 0.
+        main_hud().
       }
+      IF K = TERMINAL:INPUT:ENDCURSOR {
+        SET semode TO -1.
+        CLEARSCREEN.
+      } else IF K = TERMINAL:INPUT:HOMECURSOR {
+        SET semode TO 0.
+        main_hud().
+      } else if (semode = 2) {
+        handler_settings(K,N).
+      } ELSE IF N <> -99 {
+        if semode = 0 {
+            handler_hud(N).
+        }
+      }
+      PRINT "Key " + K + " pressed" AT (2,TERMINAL:HEIGHT-1).
     }
-    PRINT "Key " + K + " pressed" AT (2,TERMINAL:HEIGHT-1).
+    WAIT 0.01.
   }
-  WAIT 0.
+}
+
+FUNCTION init_settings {
+
+  if EXISTS("1:/config/settings.json") = FALSE {
+    if EXISTS("0:/astar-rover/backup/" + SHIP:NAME + ".json") {
+      SET settings TO READJSON("0:/astar-rover/backup/" + SHIP:NAME + ".json").
+      WRITEJSON(settings,"1:/config/settings.json").
+    } else {
+      SET settings TO default_settings.
+    }
+  } else {
+    SET settings TO READJSON("1:/config/settings.json").
+    SET settings["Version"] TO rversion.
+  }
+  LOCAL c IS default_settings:KEYS.
+  FOR k IN c {
+    if settings:HASKEY(k) = FALSE {
+      settings:ADD(k,default_settings[k]).
+    }
+  }
+  WRITEJSON(settings,"1:/config/settings.json").
 }
 
 FUNCTION main_hud {
@@ -89,6 +115,7 @@ FUNCTION main_hud {
   if EXISTS("0:/astar-rover/backup/" + SHIP:NAME + ".json") {
     PRINT "(5) Restore Settings from Archive" AT (5,11).
   }
+  // PRINT "(6) Gather Friction Coefficient data" AT (5,12).
   PRINT "(9) Reset to Factory Settings" AT (5,15).
   PRINT "Press the Home key to return to this menu" AT (5,20).
   PRINT "Press End key to exit" AT (5,22).
@@ -109,8 +136,8 @@ FUNCTION handler_hud {
   } else if N = 5 {
     COPYPATH("0:/astar-rover/backup/"+SHIP:NAME+".json","1:/config/settings.json").
     REBOOT.
-  } else if N = 6 {
-    runpath("0:/astar-rover/CalcCE.ks").
+  // } else if N = 6 {
+  //   SET settings["cFE"] TO LEXICON(BODY:NAME,calibrate_fce()).
   } else if N = 9 {
     reset().
   } else {
@@ -120,30 +147,22 @@ FUNCTION handler_hud {
 
 FUNCTION settings_hud {
   CLEARSCREEN.
-  PRINT row AT (2,2).
-  PRINT "| 1 | Min Slope       |                      |" AT (2,3).
-  PRINT row AT (2,4).
-  PRINT "| 2 | Max Slope       |                      |" AT (2,5).
-  PRINT row AT (2,6).
-  PRINT "| 3 | IPU             |                      |" AT (2,7).
-  PRINT row AT (2,8).
-  PRINT "| 4 | Default Speed   |                      |" AT (2,9).
-  PRINT row AT (2,10).
-  PRINT "| 5 | Turn Limit      |                      |" AT (2,11).
-  PRINT row AT (2,12).
-  PRINT "| 6 | Enable Sound    |                      |" AT (2,13).
-  PRINT row AT (2,12).
+  LOCAL r IS 2.
+  LOCAL c IS 1.
+  FOR v IN default_values:KEYS {
+      PRINT row AT (2,r).
+      PRINT "| "+c+" |                       |                |" AT (2,r+1).
+      PRINT default_values[v][3] AT (8,r+1).
+      PRINT settings[v] AT (34,r+1).
+      SET r TO r+2.
+      SET c TO c+1.
+  }
+  PRINT row AT (2,r).
 
-  PRINT "Press number of value you wish to edit." AT (2,16).
-  PRINT "Use the Up and Down cursor arrows to" AT (2,17).
-  PRINT "select values" AT ( 3,18).
-  PRINT "Settings will automatically save" AT (2,19).
-  PRINT settings["MinSlope"] AT (28,3).
-  PRINT settings["MaxSlope"] AT (28,5).
-  PRINT settings["IPU"] AT (28,7).
-  PRINT settings["DefaultSpeed"] AT (28,9).
-  PRINT settings["TurnLimit"] AT (28,11).
-  PRINT settings["Sound"] AT (28,13).
+  PRINT "Press number of value you wish to edit." AT (2,r+2).
+  PRINT "Use the Up and Down cursor arrows to" AT (2,r+3).
+  PRINT "select values" AT ( 3,r+4).
+  PRINT "Settings will automatically save" AT (2,r+5).
 }
 
 FUNCTION initiate {
@@ -213,14 +232,14 @@ FUNCTION report {
 
 FUNCTION handler_settings {
   PARAMETER K,N.
-  LOCAL set IS LIST(3,5,7,9,11,13).
-  LOCAL keys IS settings:KEYS.
+  LOCAL set IS LIST(3,5,7,9,11,13,15,17).
+  LOCAL keys IS default_values:KEYS.
   IF N <> -99 {
     FOR s IN set {
-      PRINT " " AT (26,s).
+      PRINT " " AT (32,s).
     }
     if N < set:LENGTH AND N <> 0 {
-      PRINT "*" AT (26,set[N-1]).
+      PRINT "*" AT (32,set[N-1]).
       SET value TO N.
     }
   } else {
@@ -238,7 +257,7 @@ FUNCTION handler_settings {
         }
       }
       SET settings TO READJSON("1:/config/settings.json").
-      PRINT settings[keys[value-1]]+"    " AT (28,set[value-1]).
+      PRINT settings[keys[value-1]]+"    " AT (34,set[value-1]).
     }
   }
 }
